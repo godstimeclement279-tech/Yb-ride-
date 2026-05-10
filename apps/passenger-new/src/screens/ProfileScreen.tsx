@@ -1,0 +1,162 @@
+import React from 'react';
+import { View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Screen } from '../components/Screen';
+import { Text } from '../components/Text';
+import { Card } from '../components/Card';
+import { ListItem } from '../components/ListItem';
+import { IconTile } from '../components/IconTile';
+import { Avatar } from '../components/Avatar';
+import { Badge } from '../components/Badge';
+import { SectionLabel } from '../components/SectionLabel';
+import { Divider } from '../components/Divider';
+import { useTheme } from '../theme/ThemeProvider';
+import { useAuth } from '../context/AuthContext';
+import type { RootStackParamList } from '../navigation/types';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+export function ProfileScreen() {
+  const navigation = useNavigation<Nav>();
+  const { user } = useAuth();
+  const { spacing, colors } = useTheme();
+
+  return (
+    <Screen scroll>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Text variant="h1">Profile</Text>
+        <ListItem
+          title=""
+          leading={
+            <IconTile size={40} variant="card" rounded="tile">
+              <Text>✎</Text>
+            </IconTile>
+          }
+          onPress={() => navigation.navigate('EditProfile')}
+        />
+      </View>
+
+      {/* Avatar header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.base,
+          paddingVertical: spacing.md,
+        }}
+      >
+        <Avatar name={user.name} size={68} online />
+        <View style={{ flex: 1, gap: spacing.xs }}>
+          <Text variant="h3">{user.name}</Text>
+          <Text variant="small" color="muted">{user.phone}</Text>
+          <Badge label="✓ VERIFIED USER" tone="dark" />
+        </View>
+      </View>
+
+      <Divider />
+
+      <SectionLabel label="Account" />
+      <Card variant="soft" padded={false}>
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>🏠</Text></IconTile>}
+          title="Saved Addresses"
+          subtitle="Home, Work, and more"
+          showChevron
+          onPress={() => navigation.navigate('SavedAddresses')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+        <Divider inset={spacing.base + 44 + spacing.md} />
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>🏦</Text></IconTile>}
+          title="Payment Methods"
+          subtitle="Bank Transfer · Paystack"
+          showChevron
+          onPress={() => navigation.navigate('PaymentMethods')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+        <Divider inset={spacing.base + 44 + spacing.md} />
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>🏷</Text></IconTile>}
+          title="Promo Codes"
+          subtitle="3 available rewards"
+          showChevron
+          onPress={() => navigation.navigate('PromoCodes')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+      </Card>
+
+      <SectionLabel label="Preferences" />
+      <Card variant="soft" padded={false}>
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>🕐</Text></IconTile>}
+          title="Ride History"
+          subtitle="View past trips and receipts"
+          showChevron
+          onPress={() => navigation.getParent()?.navigate('History' as never)}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+        <Divider inset={spacing.base + 44 + spacing.md} />
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>🔔</Text></IconTile>}
+          title="Notifications"
+          subtitle="Manage alerts and updates"
+          showChevron
+          onPress={() => navigation.navigate('Notifications')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+        <Divider inset={spacing.base + 44 + spacing.md} />
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>🛡</Text></IconTile>}
+          title="Privacy & Security"
+          subtitle="Data and account protection"
+          showChevron
+          onPress={() => navigation.navigate('Privacy')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+      </Card>
+
+      <SectionLabel label="Support" />
+      <Card variant="soft" padded={false}>
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>?</Text></IconTile>}
+          title="Help Center"
+          subtitle="FAQ and contact support"
+          showChevron
+          onPress={() => navigation.navigate('HelpCenter')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+        <Divider inset={spacing.base + 44 + spacing.md} />
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>📄</Text></IconTile>}
+          title="Legal"
+          subtitle="Terms of service and policies"
+          showChevron
+          onPress={() => navigation.navigate('Legal')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+        <Divider inset={spacing.base + 44 + spacing.md} />
+        <ListItem
+          leading={<IconTile variant="card" size={44}><Text>⚙</Text></IconTile>}
+          title="Settings"
+          subtitle="Theme and preferences"
+          showChevron
+          onPress={() => navigation.navigate('Settings')}
+          style={{ paddingHorizontal: spacing.base }}
+        />
+      </Card>
+
+      <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
+        <Text variant="caption" color="subtle">
+          YB Ride · v0.0.1 · Made with ♥
+        </Text>
+      </View>
+    </Screen>
+  );
+}

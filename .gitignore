@@ -1,0 +1,61 @@
+node_modules/
+dist/
+build/
+.turbo/
+.cache/
+
+# Build outputs
+*.tsbuildinfo
+
+# React Native
+*.jsbundle
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+ios/Pods/
+ios/build/
+ios/DerivedData/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+.bundle/
+
+# Expo / Metro
+.expo/
+.metro-health-check*
+
+# Vite / web
+.vite/
+*.local
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+google-services.json
+GoogleService-Info.plist
+*.keystore
+!debug.keystore
+keystore.properties
+
+# IDEs / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Test
+coverage/

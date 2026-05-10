@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// ⚠️ MVP rules — open access. Replace before launch.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}
