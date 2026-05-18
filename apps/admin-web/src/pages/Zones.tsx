@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import type { Zone } from '@yb/shared';
+import { useEffect, useState } from 'react';
+import type { GeoPoint, Zone } from '@yb/shared';
+import { TEST_USERS } from '@yb/shared';
 import {
   Button,
   Card,
+  EmptyState,
   Field,
   Input,
   Modal,
@@ -11,78 +13,104 @@ import {
   SectionTitle,
   Table,
 } from '../components/ui';
-import { mockZones } from '../data/mock';
+import { ZoneMapEditor } from '../components/ZoneMapEditor';
+import {
+  createZone,
+  deleteZone,
+  subscribeZones,
+  updateZone,
+} from '../services/firebase/zonesService';
 import { formatNaira, formatRelative, koboToNaira, nairaToKobo } from '../utils/format';
 
 export function Zones() {
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Zone | null>(null);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeZones((next) => {
+      setZones(next);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
 
   return (
     <>
       <PageHeader
         title="Zones"
-        subtitle="Polygon-based surcharges. Applied when pickup OR dropoff falls inside a zone."
+        subtitle="Polygon surcharges. Applied when pickup OR dropoff falls inside a zone."
         actions={<Button onClick={() => setCreating(true)}>+ New zone</Button>}
       />
 
-      <Table
-        rows={mockZones}
-        rowKey={(r) => r.id}
-        columns={[
-          {
-            key: 'name',
-            header: 'Name',
-            render: (z) => (
-              <div>
-                <div style={{ fontWeight: 600 }}>{z.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>{z.id}</div>
-              </div>
-            ),
-          },
-          {
-            key: 'surcharge',
-            header: 'Surcharge',
-            render: (z) => formatNaira(z.surcharge),
-            align: 'right',
-          },
-          {
-            key: 'points',
-            header: 'Polygon points',
-            render: (z) => z.polygon.length,
-            align: 'right',
-          },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (z) =>
-              z.isActive ? (
-                <Pill tone="success">Active</Pill>
-              ) : (
-                <Pill tone="neutral">Paused</Pill>
+      {zones.length === 0 && !loading ? (
+        <EmptyState
+          title="No zones yet"
+          description="Create your first zone. Draw a polygon on the map and set a flat NGN surcharge — it gets added to fares for any trip whose pickup or dropoff falls inside it."
+          action={<Button onClick={() => setCreating(true)}>Create zone</Button>}
+        />
+      ) : (
+        <Table
+          rows={zones}
+          rowKey={(r) => r.id}
+          columns={[
+            {
+              key: 'name',
+              header: 'Name',
+              render: (z) => (
+                <div>
+                  <div style={{ fontWeight: 600 }}>{z.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
+                    {z.id}
+                  </div>
+                </div>
               ),
-          },
-          {
-            key: 'created',
-            header: 'Created',
-            render: (z) => (
-              <span style={{ color: 'var(--c-textMuted)', fontSize: 13 }}>
-                {formatRelative(z.createdAt)}
-              </span>
-            ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            align: 'right',
-            render: (z) => (
-              <Button size="sm" variant="secondary" onClick={() => setEditing(z)}>
-                Edit
-              </Button>
-            ),
-          },
-        ]}
-      />
+            },
+            {
+              key: 'surcharge',
+              header: 'Surcharge',
+              render: (z) => formatNaira(z.surcharge),
+              align: 'right',
+            },
+            {
+              key: 'points',
+              header: 'Polygon points',
+              render: (z) => z.polygon.length,
+              align: 'right',
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: (z) =>
+                z.isActive ? (
+                  <Pill tone="success">Active</Pill>
+                ) : (
+                  <Pill tone="neutral">Paused</Pill>
+                ),
+            },
+            {
+              key: 'created',
+              header: 'Created',
+              render: (z) => (
+                <span style={{ color: 'var(--c-textMuted)', fontSize: 13 }}>
+                  {formatRelative(z.createdAt)}
+                </span>
+              ),
+            },
+            {
+              key: 'actions',
+              header: '',
+              align: 'right',
+              render: (z) => (
+                <Button size="sm" variant="secondary" onClick={() => setEditing(z)}>
+                  Edit
+                </Button>
+              ),
+            },
+          ]}
+        />
+      )}
 
       <Card style={{ marginTop: 24 }}>
         <SectionTitle>How zones work</SectionTitle>
@@ -104,10 +132,7 @@ export function Zones() {
             <code>fare.zoneSurcharge</code>.
           </li>
           <li>Pause a zone instead of deleting it to preserve history.</li>
-          <li>
-            Polygon editing in the MVP is JSON-only. A map-based editor is a fast
-            follow-up.
-          </li>
+          <li>Draw or edit polygons directly on the map in the edit dialog.</li>
         </ul>
       </Card>
 
@@ -136,30 +161,83 @@ function ZoneModal({
   const [surcharge, setSurcharge] = useState(
     zone ? String(koboToNaira(zone.surcharge)) : '',
   );
-  const [polygonJson, setPolygonJson] = useState(
-    zone ? JSON.stringify(zone.polygon, null, 2) : '[\n  { "latitude": 6.215, "longitude": 6.198 }\n]',
-  );
+  const [polygon, setPolygon] = useState<GeoPoint[]>(zone?.polygon ?? []);
   const [isActive, setIsActive] = useState(zone?.isActive ?? true);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Reset form whenever the parent reopens the modal with a different zone.
+  useEffect(() => {
+    if (open) {
+      setName(zone?.name ?? '');
+      setSurcharge(zone ? String(koboToNaira(zone.surcharge)) : '');
+      setPolygon(zone?.polygon ?? []);
+      setIsActive(zone?.isActive ?? true);
+      setError(null);
+    }
+  }, [open, zone]);
 
   function validate(): boolean {
-    try {
-      const parsed = JSON.parse(polygonJson);
-      if (!Array.isArray(parsed) || parsed.length < 3) {
-        setError('Polygon needs at least 3 points.');
-        return false;
-      }
-      for (const p of parsed) {
-        if (typeof p?.latitude !== 'number' || typeof p?.longitude !== 'number') {
-          setError('Each point needs a numeric latitude and longitude.');
-          return false;
-        }
-      }
-      setError(null);
-      return true;
-    } catch {
-      setError('Polygon JSON is invalid.');
+    if (!name.trim()) {
+      setError('Zone name is required.');
       return false;
+    }
+    if (polygon.length < 3) {
+      setError('Draw a polygon with at least 3 points on the map.');
+      return false;
+    }
+    const surchargeNum = Number(surcharge);
+    if (Number.isNaN(surchargeNum) || surchargeNum < 0) {
+      setError('Surcharge must be a number ≥ 0.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  async function save(): Promise<void> {
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      const surchargeKobo = nairaToKobo(Number(surcharge));
+      if (zone) {
+        await updateZone(zone.id, {
+          name: name.trim(),
+          surcharge: surchargeKobo,
+          polygon,
+          isActive,
+        });
+      } else {
+        await createZone({
+          name: name.trim(),
+          surcharge: surchargeKobo,
+          polygon,
+          isActive,
+          createdBy: TEST_USERS.ADMIN,
+          createdAt: Date.now(),
+        });
+      }
+      onClose();
+    } catch (e) {
+      console.warn(e);
+      setError('Could not save zone. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(): Promise<void> {
+    if (!zone) return;
+    if (!window.confirm(`Delete "${zone.name}"? This cannot be undone.`)) return;
+    setSaving(true);
+    try {
+      await deleteZone(zone.id);
+      onClose();
+    } catch (e) {
+      console.warn(e);
+      setError('Could not delete zone.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -168,18 +246,20 @@ function ZoneModal({
       open={open}
       onClose={onClose}
       title={zone ? `Edit ${zone.name}` : 'New zone'}
-      width={620}
+      width={760}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          {zone && (
+            <Button variant="ghost" onClick={remove} disabled={saving}>
+              Delete
+            </Button>
+          )}
+          <div style={{ flex: 1 }} />
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            onClick={() => {
-              if (validate()) onClose();
-            }}
-          >
-            {zone ? 'Save changes' : 'Create zone'}
+          <Button onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : zone ? 'Save changes' : 'Create zone'}
           </Button>
         </>
       }
@@ -211,27 +291,18 @@ function ZoneModal({
       </div>
 
       <Field
-        label="Polygon (JSON)"
-        hint="Ordered ring of GeoPoints. Stored values are integer kobo for surcharge; coordinates are decimal degrees."
+        label="Polygon"
+        hint="Use the polygon tool (top-left of the map) to draw the zone outline. Click each corner, double-click to finish, drag corners to adjust."
       >
-        <textarea
-          value={polygonJson}
-          onChange={(e) => setPolygonJson(e.target.value)}
-          rows={10}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            borderRadius: 8,
-            border: '1px solid var(--c-border)',
-            background: 'var(--c-surface)',
-            color: 'var(--c-text)',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            fontSize: 12,
-            outline: 'none',
-            resize: 'vertical',
-          }}
-        />
+        <ZoneMapEditor polygon={polygon} onChange={setPolygon} height={360} />
       </Field>
+
+      <div style={{ fontSize: 12, color: 'var(--c-textMuted)', marginTop: 6 }}>
+        {polygon.length === 0
+          ? 'No polygon drawn yet.'
+          : `${polygon.length} point${polygon.length === 1 ? '' : 's'} captured.`}
+      </div>
+
       {error && (
         <div
           style={{
@@ -270,7 +341,7 @@ function ZoneModal({
           color: 'var(--c-textMuted)',
         }}
       >
-        Surcharge in kobo:{' '}
+        Stored as kobo:{' '}
         <strong>
           {surcharge ? nairaToKobo(Number(surcharge)).toLocaleString() : 0}
         </strong>

@@ -24,3 +24,10 @@ export const FIREBASE_CONFIG: FirebaseConfig = {
 export const FIREBASE_CONFIGURED =
   !FIREBASE_CONFIG.apiKey.startsWith('PASTE_') &&
   !FIREBASE_CONFIG.projectId.startsWith('PASTE_');
+
+// Public Mapbox token — URL-restricted in the Mapbox dashboard so it's safe
+// to ship in the bundle. Same token used in the passenger app. Override via
+// VITE_MAPBOX_TOKEN in .env.local for local-only experiments.
+export const MAPBOX_TOKEN: string =
+  (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ??
+  'pk.eyJ1IjoiY3J5c3RhbGdlZXRlZSIsImEiOiJjbXA5ZW9ucXExa3J5MnJxenkwcDBqcGhuIn0.JBsGrPj-bun1dvDpoIenEw';
