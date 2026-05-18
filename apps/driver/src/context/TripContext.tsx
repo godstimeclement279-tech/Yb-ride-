@@ -35,6 +35,10 @@ import {
   clearDriverLocation,
   pushDriverLocation,
 } from '../services/firebase/driverLocationsService';
+import {
+  startBackgroundLocation,
+  stopBackgroundLocation,
+} from '../services/locationTask';
 
 // ─── Trip lifecycle on the driver side ─────────────────────────────────────
 // Staff assigns a paid booking → status: 'assigned'.
@@ -239,10 +243,19 @@ export function TripProvider({ children }: PropsWithChildren) {
         if (__DEV__) console.warn('setDriverStatus error', err);
       });
       if (online) {
-        // Start foreground GPS pings (asks for permission first time).
+        // Start foreground watch (immediate UI + geofence) and the native
+        // background-location task (keeps streaming when the app is
+        // backgrounded). Both push to RTDB; the bg pings stop the GPS dot
+        // from going stale once the driver locks the phone.
         startLocationWatch(driverId);
+        startBackgroundLocation(driverId).catch(err => {
+          if (__DEV__) console.warn('startBackgroundLocation error', err);
+        });
       } else {
         stopLocationWatch();
+        stopBackgroundLocation().catch(err => {
+          if (__DEV__) console.warn('stopBackgroundLocation error', err);
+        });
         clearDriverLocation(driverId).catch(err => {
           if (__DEV__) console.warn('clearDriverLocation error', err);
         });

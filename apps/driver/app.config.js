@@ -17,8 +17,15 @@ module.exports = () => ({
       supportsTablet: false,
       bundleIdentifier: 'com.ybride.driver',
       infoPlist: {
+        // Both "WhenInUse" and "Always" copy are required by App Store review
+        // when we ship background location.
         NSLocationWhenInUseUsageDescription:
-          'YB Ride uses your location to share live position with passengers and staff while you are online.',
+          'YB Ride needs your location to share your live position with passengers and dispatch while you are online.',
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          'YB Ride needs background location so passengers can keep tracking you while the app is minimized during a trip.',
+        NSLocationAlwaysUsageDescription:
+          'YB Ride needs background location so passengers can keep tracking you while the app is minimized during a trip.',
+        UIBackgroundModes: ['location', 'fetch'],
       },
     },
     android: {
@@ -29,7 +36,13 @@ module.exports = () => ({
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#1E3A8A',
       },
-      permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'],
+      permissions: [
+        'ACCESS_FINE_LOCATION',
+        'ACCESS_COARSE_LOCATION',
+        'ACCESS_BACKGROUND_LOCATION',
+        'FOREGROUND_SERVICE',
+        'FOREGROUND_SERVICE_LOCATION',
+      ],
     },
     web: {
       bundler: 'metro',
@@ -41,6 +54,20 @@ module.exports = () => ({
         '@rnmapbox/maps',
         {
           RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOAD_TOKEN,
+        },
+      ],
+      [
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'YB Ride needs your location to share your live position with passengers and dispatch while you are online.',
+          locationAlwaysAndWhenInUsePermission:
+            'YB Ride needs background location so passengers can keep tracking you while the app is minimized during a trip.',
+          locationAlwaysPermission:
+            'YB Ride needs background location so passengers can keep tracking you while the app is minimized during a trip.',
+          isAndroidBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true,
+          isIosBackgroundLocationEnabled: true,
         },
       ],
     ],
