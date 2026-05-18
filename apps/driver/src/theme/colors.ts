@@ -26,6 +26,10 @@ export interface ThemePalette {
   warning: string;
   info: string;
 
+  // Trip pin colors — green pickup, rose dropoff.
+  pickup: string;
+  dropoff: string;
+
   shadow: string;
   overlay: string;
 
@@ -54,6 +58,9 @@ export const lightPalette: ThemePalette = {
   error: '#EF4444',
   warning: '#FACC15',
   info: '#3B82F6',
+
+  pickup: '#10B981',
+  dropoff: '#F43F5E',
 
   shadow: 'rgba(0, 0, 0, 0.10)',
   overlay: 'rgba(0, 0, 0, 0.35)',
@@ -84,6 +91,9 @@ export const darkPalette: ThemePalette = {
   error: '#FCA5A5',
   warning: '#FDE047',
   info: '#93C5FD',
+
+  pickup: '#34D399',
+  dropoff: '#FB7185',
 
   shadow: 'rgba(0, 0, 0, 0.40)',
   overlay: 'rgba(15, 23, 70, 0.7)',

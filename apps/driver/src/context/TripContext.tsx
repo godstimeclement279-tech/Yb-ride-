@@ -9,7 +9,13 @@ import React, {
   type PropsWithChildren,
 } from 'react';
 import * as Location from 'expo-location';
-import type { Booking, BookingStatus, DriverStatus, Rating } from '@yb/shared';
+import {
+  haversineKm,
+  type Booking,
+  type BookingStatus,
+  type DriverStatus,
+  type Rating,
+} from '@yb/shared';
 import {
   MOCK_ASSIGNED_BOOKING,
   MOCK_PAST_BOOKINGS,
@@ -53,10 +59,8 @@ interface TripContextValue {
   declineTrip: () => Promise<void>;
   markArrived: () => void;
   startTrip: () => void;
-  completeTrip: (args?: {
-    actualDistanceKm?: number;
-    actualDurationMin?: number;
-  }) => void;
+  // Trip completion is driven by the dropoff geofence — no manual UI action.
+  // Exposed for testing / fallback only; production UI should not bind to it.
   cancelTrip: (reason: string) => void;
   rateRider: (rating: Rating) => void;
 
@@ -85,6 +89,31 @@ export function TripProvider({ children }: PropsWithChildren) {
 
   // Foreground GPS watch handle. Cleared on offline / logout.
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
+
+  // ─── Geofence auto-complete refs ──────────────────────────────────────────
+  // Driver no longer manually completes a trip. Once the trip is in_progress,
+  // each GPS ping checks distance to the dropoff. After GEOFENCE_DWELL_MS of
+  // continuous time within GEOFENCE_RADIUS_M of dropoff, completeTrip fires.
+
+  // Current activeBooking, kept fresh for the GPS handler closure.
+  const activeBookingRef = useRef<Booking | null>(activeBooking);
+  // Timestamp (ms) of first ping inside the geofence; null when outside.
+  const geofenceEnteredAtRef = useRef<number | null>(null);
+  // Booking ID we've already triggered auto-complete for (idempotent guard).
+  const autoCompletedBookingIdRef = useRef<string | null>(null);
+  // Lazily set to the completeTrip callback (defined later in this file).
+  const completeTripRef = useRef<() => void>(() => {});
+
+  // Sync activeBookingRef every render so the GPS handler sees the latest.
+  // Reset dwell + auto-complete guard when a new booking arrives.
+  useEffect(() => {
+    const prevId = activeBookingRef.current?.id;
+    activeBookingRef.current = activeBooking;
+    if (activeBooking?.id !== prevId) {
+      geofenceEnteredAtRef.current = null;
+      autoCompletedBookingIdRef.current = null;
+    }
+  }, [activeBooking]);
 
   const stopLocationWatch = useCallback(() => {
     locationWatchRef.current?.remove();
@@ -147,11 +176,47 @@ export function TripProvider({ children }: PropsWithChildren) {
           }).catch(err => {
             if (__DEV__) console.warn('pushDriverLocation error', err);
           });
+
+          // Geofence auto-complete during in-progress trips.
+          maybeAutoComplete({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
         },
       );
     },
     [stopLocationWatch],
   );
+
+  // Distance threshold (50m) and dwell duration (30s) for auto-complete.
+  const GEOFENCE_RADIUS_M = 50;
+  const GEOFENCE_DWELL_MS = 30_000;
+
+  // Run on each GPS ping. Only acts while trip is in_progress.
+  function maybeAutoComplete(coords: { latitude: number; longitude: number }) {
+    const b = activeBookingRef.current;
+    if (!b || b.status !== 'in_progress') {
+      geofenceEnteredAtRef.current = null;
+      return;
+    }
+    if (autoCompletedBookingIdRef.current === b.id) return;
+
+    const distKm = haversineKm(coords, b.dropoff.point);
+    const distM = distKm * 1000;
+    if (distM > GEOFENCE_RADIUS_M) {
+      geofenceEnteredAtRef.current = null;
+      return;
+    }
+    const now = Date.now();
+    if (geofenceEnteredAtRef.current == null) {
+      geofenceEnteredAtRef.current = now;
+      return;
+    }
+    if (now - geofenceEnteredAtRef.current >= GEOFENCE_DWELL_MS) {
+      autoCompletedBookingIdRef.current = b.id;
+      completeTripRef.current();
+    }
+  }
 
   // Drive Firestore status on toggle. Foreground GPS push starts when the
   // driver goes online.
@@ -254,6 +319,13 @@ export function TripProvider({ children }: PropsWithChildren) {
     [activeBooking, driverId],
   );
 
+  // Keep the GPS-handler-facing ref in sync with the latest completeTrip.
+  // Calls from inside watchPositionAsync go through this ref to avoid stale
+  // closures over old activeBooking values.
+  useEffect(() => {
+    completeTripRef.current = () => completeTrip();
+  }, [completeTrip]);
+
   const cancelTrip = useCallback(
     (reason: string) => {
       if (!activeBooking) return;
@@ -304,7 +376,6 @@ export function TripProvider({ children }: PropsWithChildren) {
       declineTrip,
       markArrived,
       startTrip,
-      completeTrip,
       cancelTrip,
       rateRider,
       earnings: MOCK_EARNINGS,
@@ -319,7 +390,6 @@ export function TripProvider({ children }: PropsWithChildren) {
       declineTrip,
       markArrived,
       startTrip,
-      completeTrip,
       cancelTrip,
       rateRider,
     ],

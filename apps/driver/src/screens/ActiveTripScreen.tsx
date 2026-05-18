@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,7 +32,6 @@ export function ActiveTripScreen() {
     activeBooking,
     markArrived,
     startTrip,
-    completeTrip,
     cancelTrip,
     rateRider,
   } = useTrip();
@@ -77,26 +76,29 @@ export function ActiveTripScreen() {
     );
   };
 
-  const onComplete = () => {
-    completeTrip();
-    setShowRating(true);
-  };
-
   const onSubmitRating = () => {
     rateRider({ stars, createdAt: Date.now() });
     setShowRating(false);
     navigation.goBack();
   };
 
+  // The dropoff geofence (driver TripContext) flips the trip to 'completed'
+  // automatically once the driver lingers within 50m of the destination for
+  // 30s. Detect that transition here to show the rating prompt.
+  useEffect(() => {
+    if (status === 'completed') {
+      setShowRating(true);
+    }
+  }, [status]);
+
   // Pick the primary CTA based on lifecycle.
+  // No manual "Complete trip" — the geofence triggers it.
   const primaryCta = (() => {
     switch (status) {
       case 'assigned':
         return { label: "I've arrived at pickup", onPress: markArrived, variant: 'primary' as const };
       case 'driver_arrived':
         return { label: 'Start trip', onPress: startTrip, variant: 'success' as const };
-      case 'in_progress':
-        return { label: 'Complete trip', onPress: onComplete, variant: 'success' as const };
       default:
         return null;
     }
@@ -229,7 +231,27 @@ export function ActiveTripScreen() {
           </Card>
         )}
 
-        {/* Action buttons */}
+        {/* In-progress: no Complete CTA — geofence ends the trip automatically. */}
+        {!isFinal && !showRating && status === 'in_progress' && (
+          <View
+            style={{
+              padding: spacing.base,
+              borderRadius: radius.md,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              gap: spacing.xs,
+            }}
+          >
+            <Text variant="bodyStrong">Trip in progress</Text>
+            <Text variant="small" color="muted">
+              The trip ends automatically once you arrive at the dropoff.
+              Keep GPS on so we can detect your arrival.
+            </Text>
+          </View>
+        )}
+
+        {/* Action buttons — only for assigned + driver_arrived. */}
         {!isFinal && !showRating && primaryCta && (
           <View style={{ gap: spacing.sm }}>
             <Button {...primaryCta} size="lg" />
