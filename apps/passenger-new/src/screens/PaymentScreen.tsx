@@ -11,6 +11,8 @@ import { Header } from '../components/Header';
 import { Divider } from '../components/Divider';
 import { StepIndicator } from '../components/StepIndicator';
 import { useRide } from '../context/RideContext';
+import { useAuth } from '../context/AuthContext';
+import { PaystackCheckout } from '../components/PaystackCheckout';
 import { formatNaira, formatNairaExact, formatDistance } from '@yb/shared';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -27,10 +29,12 @@ export function PaymentScreen() {
   const route = useRoute<Route>();
   const { colors, spacing, radius } = useTheme();
   const { getBooking, updateBooking, totalAfterPromoKobo, setPaymentMethod } = useRide();
+  const { user } = useAuth();
 
   const booking = getBooking(route.params.bookingId);
   const [paying, setPaying] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(15 * 60); // 15-min hold
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     setPaymentMethod('bank_transfer');
@@ -55,21 +59,51 @@ export function PaymentScreen() {
 
   const total = totalAfterPromoKobo || booking.fare.total;
 
-  const onConfirmPaid = async () => {
+  // Kick the Paystack checkout WebView open.
+  const onPayNow = () => {
+    if (!user?.email) {
+      Alert.alert(
+        'Email required',
+        'Paystack needs an email on file to issue a receipt. Add one in Profile.',
+      );
+      return;
+    }
+    setCheckoutOpen(true);
+  };
+
+  // Called when the Paystack WebView postMessages back to us.
+  const onPaystackResult = async (result: {
+    type: 'success' | 'cancel' | 'error';
+    reference?: string;
+    message?: string;
+  }) => {
+    setCheckoutOpen(false);
+    if (result.type === 'cancel') {
+      // User backed out of the popup — leave the booking pending so they can retry.
+      return;
+    }
+    if (result.type === 'error') {
+      Alert.alert(
+        'Payment failed',
+        result.message ?? 'Paystack could not complete this transaction. Try again.',
+      );
+      return;
+    }
+    // Success path — mark booking paid in Firestore. The webhook (Stage 4b)
+    // will replace this client-side write with a server-verified update.
     setPaying(true);
     try {
-      await new Promise<void>(r => setTimeout(() => r(), 900));
       await updateBooking(booking.id, {
         status: 'paid',
         paidAt: Date.now(),
-        paystackReference: `pst_${Date.now()}`,
+        paystackReference: result.reference,
         paymentMethod: 'bank_transfer',
       });
       navigation.replace('TripTracking', { bookingId: booking.id });
-    } catch (e) {
+    } catch {
       Alert.alert(
-        'Payment confirmation failed',
-        'We could not verify the payment. Check your network and try again.',
+        'Payment confirmed but booking did not update',
+        'Refresh and try again, or contact support with your Paystack reference.',
       );
     } finally {
       setPaying(false);
@@ -161,8 +195,12 @@ export function PaymentScreen() {
 
             <View style={{ marginTop: spacing.md }}>
               <Button
-                label={paying ? 'Confirming…' : "I've Paid"}
-                onPress={onConfirmPaid}
+                label={
+                  paying
+                    ? 'Confirming…'
+                    : `Pay ${formatNaira(total)} via Paystack`
+                }
+                onPress={onPayNow}
                 loading={paying}
                 size="lg"
                 variant="primary"
@@ -202,6 +240,18 @@ export function PaymentScreen() {
           />
         </View>
       </ScrollView>
+
+      <PaystackCheckout
+        visible={checkoutOpen}
+        args={{
+          email: user?.email ?? 'passenger@yb-ride.test',
+          amountKobo: total,
+          bookingId: booking.id,
+          channels: ['bank_transfer'],
+        }}
+        onClose={() => setCheckoutOpen(false)}
+        onResult={onPaystackResult}
+      />
     </SafeAreaView>
   );
 }
