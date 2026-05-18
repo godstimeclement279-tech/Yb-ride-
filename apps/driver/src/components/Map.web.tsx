@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from './Text';
+import { getDrivingDirections } from '../services/mapbox';
 
 // Web platform shim. @rnmapbox/maps is native-only; on web the named
 // exports come back undefined and React crashes. Until we wire mapbox-gl
 // for web, this stylized placeholder keeps the rest of the driver app
-// usable in the browser preview.
+// usable in the browser preview. Directions API still runs so parents
+// can show real driving ETA / distance even on web.
 
 interface GeoPoint {
   latitude: number;
@@ -20,9 +22,36 @@ interface MapProps {
   driverLocation?: GeoPoint | null;
   showRoute?: boolean;
   bottomPadding?: number;
+  routeStart?: GeoPoint;
+  routeEnd?: GeoPoint;
+  onRoute?: (result: { distanceM: number; durationSec: number }) => void;
 }
 
-export function Map({ style, pickup, dropoff, driverLocation, showRoute }: MapProps) {
+export function Map({
+  style,
+  pickup,
+  dropoff,
+  driverLocation,
+  showRoute,
+  routeStart,
+  routeEnd,
+  onRoute,
+}: MapProps) {
+  const start = routeStart ?? pickup;
+  const end = routeEnd ?? dropoff;
+
+  useEffect(() => {
+    if (!showRoute || !start || !end || !onRoute) return;
+    let cancelled = false;
+    getDrivingDirections(start, end).then((result) => {
+      if (cancelled || !result) return;
+      onRoute({ distanceM: result.distanceM, durationSec: result.durationSec });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showRoute, start?.latitude, start?.longitude, end?.latitude, end?.longitude, onRoute]);
+
   const { colors, mode, spacing, radius } = useTheme();
 
   const baseBg = mode === 'dark' ? '#0F172A' : '#EAF0F4';

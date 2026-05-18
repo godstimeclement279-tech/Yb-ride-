@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Mapbox, { MapView, Camera, PointAnnotation, ShapeSource, LineLayer } from '@rnmapbox/maps';
 import { useTheme } from '../theme/ThemeProvider';
-import { AGBOR_CENTER, MAPBOX_PUBLIC_TOKEN } from '../services/mapbox';
+import {
+  AGBOR_CENTER,
+  MAPBOX_PUBLIC_TOKEN,
+  getDrivingDirections,
+} from '../services/mapbox';
 
 // Initialize Mapbox once at module load.
 Mapbox.setAccessToken(MAPBOX_PUBLIC_TOKEN);
@@ -20,6 +24,9 @@ interface MapProps {
   showRoute?: boolean;
   // Padding around fitted bounds. Useful when a bottom sheet covers the map.
   bottomPadding?: number;
+  // Called when Mapbox Directions returns a route. Lets the parent show ETA
+  // (durationSec / 60) or the actual driving distance (distanceM / 1000).
+  onRoute?: (result: { distanceM: number; durationSec: number }) => void;
 }
 
 export function Map({
@@ -29,6 +36,7 @@ export function Map({
   driverLocation,
   showRoute = false,
   bottomPadding = 0,
+  onRoute,
 }: MapProps) {
   const { colors, mode } = useTheme();
   const cameraRef = useRef<Camera>(null);
@@ -62,8 +70,35 @@ export function Map({
     }
   }, [pickup?.latitude, pickup?.longitude, dropoff?.latitude, dropoff?.longitude, bottomPadding]);
 
+  // Real driving directions from Mapbox. Falls back to a straight line if the
+  // API call fails. Re-fetches when endpoints change.
+  const [routeCoords, setRouteCoords] = useState<Array<[number, number]> | null>(null);
+  useEffect(() => {
+    if (!showRoute || !pickup || !dropoff) {
+      setRouteCoords(null);
+      return;
+    }
+    let cancelled = false;
+    getDrivingDirections(pickup, dropoff).then((result) => {
+      if (cancelled) return;
+      if (result) {
+        setRouteCoords(result.routeCoordinates);
+        onRoute?.({ distanceM: result.distanceM, durationSec: result.durationSec });
+      } else {
+        // Fallback: straight line.
+        setRouteCoords([
+          [pickup.longitude, pickup.latitude],
+          [dropoff.longitude, dropoff.latitude],
+        ]);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showRoute, pickup?.latitude, pickup?.longitude, dropoff?.latitude, dropoff?.longitude, onRoute]);
+
   const routeGeoJson = useMemo(() => {
-    if (!showRoute || !pickup || !dropoff) return null;
+    if (!routeCoords) return null;
     return {
       type: 'FeatureCollection' as const,
       features: [
@@ -71,16 +106,13 @@ export function Map({
           type: 'Feature' as const,
           geometry: {
             type: 'LineString' as const,
-            coordinates: [
-              [pickup.longitude, pickup.latitude],
-              [dropoff.longitude, dropoff.latitude],
-            ],
+            coordinates: routeCoords,
           },
           properties: {},
         },
       ],
     };
-  }, [showRoute, pickup?.latitude, pickup?.longitude, dropoff?.latitude, dropoff?.longitude]);
+  }, [routeCoords]);
 
   return (
     <View style={[styles.container, style]}>

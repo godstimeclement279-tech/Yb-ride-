@@ -16,6 +16,7 @@ import { Divider } from '../components/Divider';
 import { useRide } from '../context/RideContext';
 import { MOCK_ACTIVE_DRIVER } from '../data/mockData';
 import { formatNaira, formatDistance, type BookingStatus } from '@yb/shared';
+import { formatEtaMinutes, getDrivingDirections } from '../services/mapbox';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -110,10 +111,54 @@ export function TripTrackingScreen() {
     return () => sub.remove();
   }, [confirmExit]);
 
+  // Live ETA via Mapbox Directions. Re-runs when driver location, status, or
+  // the trip endpoints change. While the driver hasn't arrived yet we route
+  // driver→pickup; once in_progress we route driver→dropoff. Refreshes every
+  // 30s as the driver moves.
+  const [etaSec, setEtaSec] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (isFinal) {
+      setEtaSec(null);
+      return;
+    }
+    const inProgress = booking.status === 'in_progress';
+    const from = driverLocation ?? booking.pickup.point;
+    const to = inProgress ? booking.dropoff.point : booking.pickup.point;
+    let cancelled = false;
+    const fetchEta = () => {
+      getDrivingDirections(from, to).then((r) => {
+        if (cancelled || !r) return;
+        setEtaSec(r.durationSec);
+      });
+    };
+    fetchEta();
+    const t = setInterval(fetchEta, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [
+    isFinal,
+    booking.status,
+    driverLocation?.latitude,
+    driverLocation?.longitude,
+    booking.pickup.point.latitude,
+    booking.pickup.point.longitude,
+    booking.dropoff.point.latitude,
+    booking.dropoff.point.longitude,
+  ]);
+
+  const etaLabel =
+    etaSec != null
+      ? formatEtaMinutes(etaSec)
+      : booking.status === 'in_progress'
+        ? '—'
+        : 'Locating';
+
   const shareTrip = async () => {
     try {
       await Share.share({
-        message: `Tracking my YB Ride from ${booking.pickup.label} to ${booking.dropoff.label}. ETA ${booking.status === 'in_progress' ? '12' : '4'} mins.`,
+        message: `Tracking my YB Ride from ${booking.pickup.label} to ${booking.dropoff.label}. ETA ${etaLabel}.`,
       });
     } catch {
       /* user cancelled */
@@ -217,7 +262,7 @@ export function TripTrackingScreen() {
 
         {/* Stats row */}
         <View style={{ flexDirection: 'row', marginTop: spacing.md, marginBottom: spacing.md }}>
-          <Stat label="Arrival Time" value={booking.status === 'in_progress' ? '12 mins' : '4 mins'} />
+          <Stat label="Arrival Time" value={etaLabel} />
           <Stat
             label="Distance"
             value={formatDistance(booking.fare.estimatedDistanceKm)}
