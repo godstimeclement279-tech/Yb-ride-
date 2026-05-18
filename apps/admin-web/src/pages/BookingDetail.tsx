@@ -80,7 +80,7 @@ export function BookingDetail() {
               }}
             >
               <h2 style={{ fontSize: 16 }}>Status</h2>
-              <BookingStatusPill status={booking.status} />
+              <BookingStatusPill status={booking.status} acceptedAt={booking.acceptedAt} />
             </div>
             <ol
               style={{

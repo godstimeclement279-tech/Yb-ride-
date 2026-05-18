@@ -1,14 +1,25 @@
 import type { BookingStatus, DriverStatus } from '@yb/shared';
 import { Pill } from './ui';
 
-export function BookingStatusPill({ status }: { status: BookingStatus }) {
+interface BookingStatusPillProps {
+  status: BookingStatus;
+  // Differentiates "assigned + waiting on driver" from "assigned + driver
+  // en route". Pass booking.acceptedAt when rendering.
+  acceptedAt?: number;
+}
+
+export function BookingStatusPill({ status, acceptedAt }: BookingStatusPillProps) {
   switch (status) {
     case 'pending_payment':
       return <Pill tone="warning">Pending payment</Pill>;
     case 'paid':
       return <Pill tone="info">Paid · awaiting assignment</Pill>;
     case 'assigned':
-      return <Pill tone="info">Assigned</Pill>;
+      return acceptedAt ? (
+        <Pill tone="info">Driver en route</Pill>
+      ) : (
+        <Pill tone="warning">Awaiting driver response</Pill>
+      );
     case 'driver_arrived':
       return <Pill tone="info">Driver arrived</Pill>;
     case 'in_progress':

@@ -82,7 +82,7 @@ export function BookingDetail() {
       />
 
       <div style={{ marginBottom: 18, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <BookingStatusPill status={booking.status} />
+        <BookingStatusPill status={booking.status} acceptedAt={booking.acceptedAt} />
         <Pill tone="neutral">{booking.fare.carTypeName}</Pill>
         {booking.isRoundTrip && <Pill tone="info">Round trip</Pill>}
         {booking.paymentMethod && (

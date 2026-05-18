@@ -132,7 +132,7 @@ export function Dashboard() {
               {
                 key: 'status',
                 header: 'Status',
-                render: (b) => <BookingStatusPill status={b.status} />,
+                render: (b) => <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />,
               },
               {
                 key: 'when',

@@ -185,7 +185,7 @@ function BookingLane({
                 }}
               >
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{b.id}</span>
-                <BookingStatusPill status={b.status} />
+                <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />
               </div>
               <div
                 style={{
