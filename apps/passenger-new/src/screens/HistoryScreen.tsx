@@ -11,7 +11,6 @@ import { Header } from '../components/Header';
 import { Divider } from '../components/Divider';
 import { IconTile } from '../components/IconTile';
 import { useTheme } from '../theme/ThemeProvider';
-import { useRide } from '../context/RideContext';
 import { MOCK_PAST_BOOKINGS } from '../data/mockData';
 import { formatNaira, type Booking } from '@yb/shared';
 import type { RootStackParamList } from '../navigation/types';
@@ -42,22 +41,24 @@ export function HistoryScreen() {
   const { colors, spacing } = useTheme();
   const [filter, setFilter] = useState<Filter>('all');
 
-  // Combine new bookings created during this session + mock historical.
-  const ride = useRide();
-  // Pull all known bookings via getBooking is per-id; instead read from
-  // mock + any in-session ones aren't tracked here. For preview, mock list is OK.
   const allBookings = MOCK_PAST_BOOKINGS;
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return allBookings;
+    // Tag field not on Booking yet; non-"all" buckets show empty until backend tags trips.
+    return [] as Booking[];
+  }, [allBookings, filter]);
 
   const groups = useMemo(() => {
     const now = Date.now();
     const recent: Booking[] = [];
     const older: Booking[] = [];
-    for (const b of allBookings) {
+    for (const b of filtered) {
       if (now - b.createdAt < 7 * dayMs) recent.push(b);
       else older.push(b);
     }
     return { recent, older };
-  }, [allBookings]);
+  }, [filtered]);
 
   const totalCompleted = allBookings.filter(b => b.status === 'completed').length;
 
@@ -65,8 +66,8 @@ export function HistoryScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ paddingHorizontal: spacing.base }}>
         <Header
-          title="TRIP_HISTORY"
-          subtitle={`Total ${totalCompleted} trips completed`}
+          title="Trip History"
+          subtitle={`${totalCompleted} ${totalCompleted === 1 ? 'trip' : 'trips'} completed`}
           back={false}
           trailing={
             <Text variant="h3" onPress={() => navigation.goBack()}>×</Text>
@@ -116,7 +117,7 @@ export function HistoryScreen() {
               color="muted"
               style={{ textAlign: 'center', marginVertical: spacing.sm }}
             >
-              PREVIOUS_MONTH
+              EARLIER
             </Text>
             {groups.older.map(b => (
               <TripRow
@@ -128,9 +129,11 @@ export function HistoryScreen() {
           </>
         )}
 
-        {allBookings.length === 0 && (
+        {filtered.length === 0 && (
           <View style={{ paddingVertical: spacing.xxl, alignItems: 'center' }}>
-            <Text variant="body" color="muted">No trips yet</Text>
+            <Text variant="body" color="muted">
+              {filter === 'all' ? 'No trips yet' : `No ${filter} trips`}
+            </Text>
           </View>
         )}
       </ScrollView>

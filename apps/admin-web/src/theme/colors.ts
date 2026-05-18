@@ -1,5 +1,5 @@
 // YB Ride brand palette — mirrors apps/driver/src/theme/colors.ts so visuals match.
-// Primary Deep Blue #1E3A8A, Accent Gold #F59E0B.
+// Primary Deep Blue #1E3A8A, Accent Gold #FACC15.
 
 export interface ThemePalette {
   primary: string;
@@ -29,7 +29,7 @@ export interface ThemePalette {
 export const lightPalette: ThemePalette = {
   primary: '#1E3A8A',
   primaryDim: '#3151B0',
-  accent: '#F59E0B',
+  accent: '#FACC15',
 
   text: '#1F2937',
   textMuted: '#6B7280',
@@ -44,7 +44,7 @@ export const lightPalette: ThemePalette = {
 
   success: '#10B981',
   error: '#EF4444',
-  warning: '#F59E0B',
+  warning: '#FACC15',
   info: '#3B82F6',
 
   shadow: 'rgba(0, 0, 0, 0.06)',
@@ -54,7 +54,7 @@ export const lightPalette: ThemePalette = {
 export const darkPalette: ThemePalette = {
   primary: '#3B5BCA',
   primaryDim: '#1E3A8A',
-  accent: '#FBBF24',
+  accent: '#FDE047',
 
   text: '#F9FAFB',
   textMuted: '#9CA3AF',
@@ -69,7 +69,7 @@ export const darkPalette: ThemePalette = {
 
   success: '#34D399',
   error: '#F87171',
-  warning: '#FBBF24',
+  warning: '#FDE047',
   info: '#60A5FA',
 
   shadow: 'rgba(0, 0, 0, 0.40)',

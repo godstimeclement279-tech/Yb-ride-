@@ -57,15 +57,23 @@ export function PaymentScreen() {
 
   const onConfirmPaid = async () => {
     setPaying(true);
-    await new Promise<void>(r => setTimeout(() => r(), 900));
-    await updateBooking(booking.id, {
-      status: 'paid',
-      paidAt: Date.now(),
-      paystackReference: `pst_${Date.now()}`,
-      paymentMethod: 'bank_transfer',
-    });
-    setPaying(false);
-    navigation.replace('TripTracking', { bookingId: booking.id });
+    try {
+      await new Promise<void>(r => setTimeout(() => r(), 900));
+      await updateBooking(booking.id, {
+        status: 'paid',
+        paidAt: Date.now(),
+        paystackReference: `pst_${Date.now()}`,
+        paymentMethod: 'bank_transfer',
+      });
+      navigation.replace('TripTracking', { bookingId: booking.id });
+    } catch (e) {
+      Alert.alert(
+        'Payment confirmation failed',
+        'We could not verify the payment. Check your network and try again.',
+      );
+    } finally {
+      setPaying(false);
+    }
   };
 
   const min = Math.floor(secondsLeft / 60);

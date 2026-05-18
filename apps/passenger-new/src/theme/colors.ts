@@ -1,7 +1,7 @@
 // YB Ride brand palette — premium minimal aesthetic.
 // Brand spec:
 //   Primary CTA / brand: Deep Blue #1E3A8A
-//   Accent / rating:     Gold      #F59E0B
+//   Accent / rating:     Gold      #FACC15
 //   Pickup pin:          Green     #10B981
 //   Dropoff pin:         Rose      #F43F5E
 //   Status success:      Green     #10B981
@@ -60,8 +60,8 @@ export const lightPalette: ThemePalette = {
   primary: '#1E3A8A',
   primaryDim: '#3151B0',
   primarySoft: '#E8EEFF',
-  accent: '#F59E0B',
-  accentSoft: '#FEF3C7',
+  accent: '#FACC15',
+  accentSoft: '#FEF9C3',
 
   text: '#0A0A0A',
   textMuted: '#6B7280',
@@ -81,7 +81,7 @@ export const lightPalette: ThemePalette = {
   successSoft: '#D1FAE5',
   error: '#EF4444',
   errorSoft: '#FEE2E2',
-  warning: '#F59E0B',
+  warning: '#FACC15',
   info: '#3B82F6',
 
   pickup: '#10B981',
@@ -95,41 +95,42 @@ export const lightPalette: ThemePalette = {
   mapDriverOffline: '#9CA3AF',
 };
 
+// YB Brand dark mode: navy canvas, yellow CTA, white text.
 export const darkPalette: ThemePalette = {
-  primary: '#3B5BCA',
-  primaryDim: '#1E3A8A',
-  primarySoft: '#1E2A55',
-  accent: '#FBBF24',
-  accentSoft: '#3F2E0A',
+  primary: '#FDE047',
+  primaryDim: '#FACC15',
+  primarySoft: '#3D52A8',
+  accent: '#FDE047',
+  accentSoft: '#2A3F88',
 
-  text: '#F5F5F7',
-  textMuted: '#9CA3AF',
-  textSubtle: '#6B7280',
-  textInverse: '#0A0A0A',
+  text: '#FFFFFF',
+  textMuted: '#C7D2E8',
+  textSubtle: '#93A5C7',
+  textInverse: '#1E3A8A',
 
-  background: '#0B0B0F',
-  surface: '#16161B',
-  surfaceMuted: '#101015',
-  card: '#1A1A20',
+  background: '#1E3A8A',
+  surface: '#2A4AA0',
+  surfaceMuted: '#1A3478',
+  card: '#34529F',
 
-  border: '#26262E',
-  borderStrong: '#F5F5F7',
-  divider: '#1F1F26',
+  border: '#3E5BAD',
+  borderStrong: '#FDE047',
+  divider: '#2A4AA0',
 
   success: '#34D399',
-  successSoft: '#0F3D2E',
-  error: '#F87171',
-  errorSoft: '#3D1A1A',
-  warning: '#FBBF24',
-  info: '#60A5FA',
+  successSoft: '#1E4F3C',
+  error: '#FCA5A5',
+  errorSoft: '#7F1D1D',
+  warning: '#FDE047',
+  info: '#93C5FD',
 
   pickup: '#34D399',
   dropoff: '#FB7185',
 
-  shadow: 'rgba(0, 0, 0, 0.55)',
-  overlay: 'rgba(0, 0, 0, 0.65)',
+  shadow: 'rgba(0, 0, 0, 0.45)',
+  overlay: 'rgba(15, 23, 70, 0.7)',
 
   mapDriverOnline: '#34D399',
-  mapDriverOnTrip: '#3B5BCA',
-  mapDriverOffline: '#6B7280',
+  mapDriverOnTrip: '#FB923C',
+  mapDriverOffline: '#93A5C7',
 };

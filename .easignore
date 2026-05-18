@@ -1,0 +1,34 @@
+node_modules/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# React Native
+*.jsbundle
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+ios/Pods/
+ios/build/
+ios/DerivedData/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+.bundle/
+
+# Expo / Metro
+.expo/
+.metro-health-check*
+
+# Vite / web
+.vite/
+*.local
+
+# IMPORTANT: keep packages/*/dist (shared workspace build output needed by Metro on EAS)
+!packages/*/dist/
+!packages/*/dist/**
+
+# Ignore other dist/build dirs but not shared
+apps/*/dist/
+apps/*/build/

@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTrip } from '../context/TripContext';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
-import { MapPlaceholder } from '../components/MapPlaceholder';
+import { Map } from '../components/Map';
 import { BottomSheet } from '../components/BottomSheet';
 import { OnlineToggle } from '../components/OnlineToggle';
 import { StatusBadge } from '../components/StatusBadge';
@@ -24,7 +24,15 @@ export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
   const { user } = useAuth();
-  const { driverStatus, setOnline, activeBooking, earnings } = useTrip();
+  const {
+    driverStatus,
+    setOnline,
+    activeBooking,
+    earnings,
+    hasIncomingOffer,
+    acceptTrip,
+    declineTrip,
+  } = useTrip();
   const insets = useSafeAreaInsets();
 
   if (!user) return null;
@@ -35,12 +43,12 @@ export function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1 }}>
-        <MapPlaceholder
+        <Map
           style={{ flex: 1 }}
-          hasRoute={hasActive}
-          pickupLabel={activeBooking?.pickup.label}
-          dropoffLabel={activeBooking?.dropoff.label}
-          driverDot
+          pickup={activeBooking?.pickup.point}
+          dropoff={activeBooking?.dropoff.point}
+          showRoute={hasActive}
+          bottomPadding={280}
         />
 
         {/* Top bar: greeting + settings */}
@@ -171,11 +179,49 @@ export function HomeScreen() {
                 </Text>
               </View>
 
-              <Button
-                label="Open trip"
-                onPress={() => navigation.navigate('ActiveTrip')}
-                size="lg"
-              />
+              {hasIncomingOffer ? (
+                <View style={{ gap: spacing.sm }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.xs,
+                      paddingVertical: spacing.xs,
+                    }}
+                  >
+                    <Text variant="caption" color="warning" style={{ fontWeight: '700' }}>
+                      ● INCOMING TRIP
+                    </Text>
+                    <Text variant="caption" color="muted">
+                      Respond within 30s
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        label="Decline"
+                        onPress={declineTrip}
+                        variant="ghost"
+                        size="lg"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        label="Accept"
+                        onPress={acceptTrip}
+                        variant="primary"
+                        size="lg"
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <Button
+                  label="Open trip"
+                  onPress={() => navigation.navigate('ActiveTrip')}
+                  size="lg"
+                />
+              )}
             </View>
           )}
 

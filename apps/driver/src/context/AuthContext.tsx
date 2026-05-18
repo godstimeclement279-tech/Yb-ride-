@@ -2,22 +2,24 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type PropsWithChildren,
 } from 'react';
 import type { Driver } from '@yb/shared';
 import { MOCK_DRIVER } from '../data/mockData';
+import { FIREBASE_CONFIGURED } from '../services/firebase/index';
+import { findDriverByPhone, subscribeDriver } from '../services/firebase/driversService';
 
 // ─── Auth model (MVP) ──────────────────────────────────────────────────────
 // Drivers do NOT self-register. Admin creates the account in the admin
 // dashboard with `phone` + `password`. Driver logs in here with those creds.
-// MVP uses a hardcoded credential pair; real Firebase Auth lands post-MVP.
+// Pre-Auth MVP: phone-lookup against Firestore + a hardcoded shared password.
+// Real Firebase Auth (phone OTP) lands in a follow-up pass.
 
-const DEMO_CREDENTIALS = {
-  phone: '+2348012345678',
-  password: 'driver123',
-};
+const DEMO_PASSWORD = 'driver123';
+const DEMO_FALLBACK_PHONE = '+2348012345678';
 
 interface AuthContextValue {
   user: Driver | null;
@@ -35,25 +37,60 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Once authed, keep the driver record fresh (admin may toggle isActive remotely).
+  useEffect(() => {
+    if (!user || !FIREBASE_CONFIGURED) return;
+    const unsub = subscribeDriver(user.id, fresh => {
+      if (!fresh) {
+        // Driver doc deleted by admin → force sign-out.
+        setUser(null);
+        setError('Your account is no longer active.');
+        return;
+      }
+      setUser(fresh);
+    });
+    return unsub;
+  }, [user?.id]);
+
   const signIn = useCallback(async (phone: string, password: string) => {
     setLoading(true);
     setError(null);
-    // simulate latency for real-feel
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 700));
-    const ok =
-      phone.trim() === DEMO_CREDENTIALS.phone &&
-      password === DEMO_CREDENTIALS.password;
-    if (!ok) {
+
+    if (password !== DEMO_PASSWORD) {
       setError('Invalid phone or password');
       setLoading(false);
       return false;
     }
-    if (!MOCK_DRIVER.isActive) {
+
+    // Try Firestore lookup first; fall back to MOCK_DRIVER if disabled / offline.
+    let driver: Driver | null = null;
+    if (FIREBASE_CONFIGURED) {
+      try {
+        driver = await findDriverByPhone(phone);
+      } catch (err) {
+        if (__DEV__) console.warn('findDriverByPhone error', err);
+      }
+    }
+    if (!driver) {
+      const fallbackOk = phone.trim() === DEMO_FALLBACK_PHONE;
+      if (!fallbackOk) {
+        setError(
+          FIREBASE_CONFIGURED
+            ? 'No driver account found for that phone. Ask admin to add you.'
+            : 'Invalid phone or password',
+        );
+        setLoading(false);
+        return false;
+      }
+      driver = MOCK_DRIVER;
+    }
+
+    if (!driver.isActive) {
       setError('Account not yet approved by admin');
       setLoading(false);
       return false;
     }
-    setUser(MOCK_DRIVER);
+    setUser(driver);
     setLoading(false);
     return true;
   }, []);
@@ -84,4 +121,7 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export const DEMO_LOGIN = DEMO_CREDENTIALS;
+export const DEMO_LOGIN = {
+  phone: DEMO_FALLBACK_PHONE,
+  password: DEMO_PASSWORD,
+};

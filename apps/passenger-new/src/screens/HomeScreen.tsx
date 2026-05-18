@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { SearchBar } from '../components/SearchBar';
-import { MapPlaceholder } from '../components/MapPlaceholder';
+import { Map } from '../components/Map';
 import { BottomSheet } from '../components/BottomSheet';
 import { CarOptionCard } from '../components/CarOptionCard';
 import { ListItem } from '../components/ListItem';
@@ -27,6 +27,20 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+// Pick a recent-place glyph from the label keyword.
+function iconForPlace(label: string): string {
+  const l = label.toLowerCase();
+  if (l.includes('hospital') || l.includes('clinic')) return '🏥';
+  if (l.includes('market') || l.includes('mall') || l.includes('shop')) return '🛒';
+  if (l.includes('school') || l.includes('university') || l.includes('college')) return '🎓';
+  if (l.includes('airport')) return '✈️';
+  if (l.includes('park')) return '🌳';
+  if (l.includes('church') || l.includes('mosque')) return '⛪';
+  if (l.includes('restaurant') || l.includes('cafe')) return '🍽️';
+  if (l.includes('hotel') || l.includes('lodge')) return '🏨';
+  return '📍';
+}
+
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
@@ -46,6 +60,7 @@ export function HomeScreen() {
     totalAfterPromoKobo,
   } = useRide();
   const [creating, setCreating] = useState(false);
+  const [sheetCollapsed, setSheetCollapsed] = useState(true);
 
   const showRideSelector = !!dropoff;
 
@@ -61,12 +76,12 @@ export function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1 }}>
-        <MapPlaceholder
+        <Map
           style={{ flex: 1 }}
-          hasRoute={showRideSelector}
-          pickupLabel={pickup?.label}
-          dropoffLabel={dropoff?.label}
-          showAttribution={false}
+          pickup={pickup?.point}
+          dropoff={dropoff?.point}
+          showRoute={showRideSelector}
+          bottomPadding={300}
         />
 
         {/* Top bar — menu + brand + bell */}
@@ -96,18 +111,26 @@ export function HomeScreen() {
         </SafeAreaView>
       </View>
 
-      {/* Bottom sheet — two states */}
-      <BottomSheet style={{ paddingBottom: insets.bottom + spacing.lg }}>
+      {/* Bottom sheet — tap drag handle to expand/collapse */}
+      <BottomSheet
+        style={{ paddingBottom: insets.bottom + spacing.lg }}
+        onToggle={() => setSheetCollapsed(c => !c)}
+        collapsed={sheetCollapsed && !showRideSelector}
+      >
         {!showRideSelector ? (
           <ScrollView
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            style={{ maxHeight: 480 }}
+            style={{ maxHeight: sheetCollapsed ? 240 : 480 }}
           >
-            <Text variant="h2">Hi, {user.name.split(' ')[0]}</Text>
-            <Text variant="small" color="muted" style={{ marginBottom: spacing.base }}>
-              Where are we going today?
-            </Text>
+            {!sheetCollapsed && (
+              <>
+                <Text variant="h2">Hi, {user.name.split(' ')[0]}</Text>
+                <Text variant="small" color="muted" style={{ marginBottom: spacing.base }}>
+                  Where are we going today?
+                </Text>
+              </>
+            )}
 
             {/* Pickup row */}
             <Pressable
@@ -162,28 +185,30 @@ export function HomeScreen() {
               ))}
             </View>
 
-            <View style={{ marginTop: spacing.lg }}>
-              <Text
-                variant="overline"
-                color="muted"
-                style={{ marginBottom: spacing.sm }}
-              >
-                RECENT
-              </Text>
-              {MOCK_RECENT_PLACES.slice(0, 3).map((place, i) => (
-                <ListItem
-                  key={place.label}
-                  leading={
-                    <IconTile size={40} variant="card">
-                      <Text>{i === 0 ? '🛒' : i === 1 ? '🏥' : '📍'}</Text>
-                    </IconTile>
-                  }
-                  title={place.label}
-                  subtitle={place.formatted}
-                  onPress={() => setDropoff(place)}
-                />
-              ))}
-            </View>
+            {!sheetCollapsed && (
+              <View style={{ marginTop: spacing.lg }}>
+                <Text
+                  variant="overline"
+                  color="muted"
+                  style={{ marginBottom: spacing.sm }}
+                >
+                  RECENT
+                </Text>
+                {MOCK_RECENT_PLACES.slice(0, 3).map(place => (
+                  <ListItem
+                    key={place.label}
+                    leading={
+                      <IconTile size={40} variant="card">
+                        <Text>{iconForPlace(place.label)}</Text>
+                      </IconTile>
+                    }
+                    title={place.label}
+                    subtitle={place.formatted}
+                    onPress={() => setDropoff(place)}
+                  />
+                ))}
+              </View>
+            )}
           </ScrollView>
         ) : (
           <ScrollView

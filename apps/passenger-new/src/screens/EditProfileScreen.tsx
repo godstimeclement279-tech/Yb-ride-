@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
@@ -29,7 +29,11 @@ export function EditProfileScreen() {
   };
 
   return (
-    <Screen scroll>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Screen scroll>
       <Header title="Edit Profile" back />
 
       <View style={{ alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm }}>
@@ -76,7 +80,8 @@ export function EditProfileScreen() {
           navigation.goBack();
         }}
       />
-    </Screen>
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }
 

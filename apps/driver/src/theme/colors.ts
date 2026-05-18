@@ -1,7 +1,7 @@
 // YB Ride brand palette (light + dark). Money-precision unrelated; pure visual.
 // Brand spec:
 //   Primary: Deep Blue #1E3A8A
-//   Accent:  Gold      #F59E0B
+//   Accent:  Gold      #FACC15
 //   Success: Green     #10B981
 //   Error:   Red       #EF4444
 
@@ -37,7 +37,7 @@ export interface ThemePalette {
 export const lightPalette: ThemePalette = {
   primary: '#1E3A8A',
   primaryDim: '#3151B0',
-  accent: '#F59E0B',
+  accent: '#FACC15',
 
   text: '#1F2937',
   textMuted: '#6B7280',
@@ -52,7 +52,7 @@ export const lightPalette: ThemePalette = {
 
   success: '#10B981',
   error: '#EF4444',
-  warning: '#F59E0B',
+  warning: '#FACC15',
   info: '#3B82F6',
 
   shadow: 'rgba(0, 0, 0, 0.10)',
@@ -63,31 +63,32 @@ export const lightPalette: ThemePalette = {
   mapDriverOffline: '#9CA3AF',
 };
 
+// YB Brand dark mode: navy canvas, yellow CTA, white text.
 export const darkPalette: ThemePalette = {
-  primary: '#3B5BCA',
-  primaryDim: '#1E3A8A',
-  accent: '#FBBF24',
+  primary: '#FDE047',
+  primaryDim: '#FACC15',
+  accent: '#FDE047',
 
-  text: '#F9FAFB',
-  textMuted: '#9CA3AF',
-  textInverse: '#0B1020',
+  text: '#FFFFFF',
+  textMuted: '#C7D2E8',
+  textInverse: '#1E3A8A',
 
-  background: '#0B1020',
-  surface: '#111827',
-  card: '#1F2937',
+  background: '#1E3A8A',
+  surface: '#2A4AA0',
+  card: '#34529F',
 
-  border: '#374151',
-  divider: '#1F2937',
+  border: '#3E5BAD',
+  divider: '#2A4AA0',
 
   success: '#34D399',
-  error: '#F87171',
-  warning: '#FBBF24',
-  info: '#60A5FA',
+  error: '#FCA5A5',
+  warning: '#FDE047',
+  info: '#93C5FD',
 
   shadow: 'rgba(0, 0, 0, 0.40)',
-  overlay: 'rgba(0, 0, 0, 0.55)',
+  overlay: 'rgba(15, 23, 70, 0.7)',
 
   mapDriverOnline: '#34D399',
-  mapDriverOnTrip: '#3B5BCA',
-  mapDriverOffline: '#6B7280',
+  mapDriverOnTrip: '#FB923C',
+  mapDriverOffline: '#93A5C7',
 };

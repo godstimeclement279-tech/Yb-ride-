@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Promo, PromoKind } from '@yb/shared';
 import {
   Button,
@@ -12,8 +12,13 @@ import {
   Select,
   Table,
 } from '../components/ui';
-import { mockPromos } from '../data/mock';
 import { formatDate, formatNaira, koboToNaira, nairaToKobo } from '../utils/format';
+import {
+  deletePromo,
+  savePromo,
+  subscribePromos,
+} from '../services/firebase/promosService';
+import { FIREBASE_CONFIGURED } from '../services/firebase/index';
 
 function promoStatus(p: Promo): { tone: 'success' | 'warning' | 'neutral'; label: string } {
   const now = Date.now();
@@ -33,8 +38,22 @@ function describeValue(p: Promo): string {
 }
 
 export function Promos() {
+  const [promos, setPromos] = useState<Promo[]>([]);
   const [editing, setEditing] = useState<Promo | null>(null);
   const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!FIREBASE_CONFIGURED) {
+      setLoading(false);
+      return;
+    }
+    const unsub = subscribePromos(list => {
+      setPromos(list);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
 
   return (
     <>
@@ -44,76 +63,87 @@ export function Promos() {
         actions={<Button onClick={() => setCreating(true)}>+ New promo</Button>}
       />
 
-      <Table
-        rows={mockPromos}
-        rowKey={(r) => r.id}
-        columns={[
-          {
-            key: 'code',
-            header: 'Code',
-            render: (p) => (
-              <code
-                style={{
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  fontFamily:
-                    'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  background: 'var(--c-divider)',
-                  padding: '2px 8px',
-                  borderRadius: 6,
-                }}
-              >
-                {p.code}
-              </code>
-            ),
-          },
-          {
-            key: 'value',
-            header: 'Discount',
-            render: describeValue,
-          },
-          {
-            key: 'min',
-            header: 'Min trip',
-            render: (p) => (p.minTripAmount ? formatNaira(p.minTripAmount) : '—'),
-            align: 'right',
-          },
-          {
-            key: 'usage',
-            header: 'Usage',
-            render: (p) =>
-              `${p.usageCount.toLocaleString()}${p.usageLimit ? ` / ${p.usageLimit.toLocaleString()}` : ''}`,
-            align: 'right',
-          },
-          {
-            key: 'window',
-            header: 'Window',
-            render: (p) => (
-              <span style={{ fontSize: 13 }}>
-                {formatDate(p.startsAt)} → {formatDate(p.expiresAt)}
-              </span>
-            ),
-          },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (p) => {
-              const s = promoStatus(p);
-              return <Pill tone={s.tone}>{s.label}</Pill>;
+      {loading ? (
+        <Card>
+          <div style={{ padding: 24, color: 'var(--c-textMuted)' }}>Loading…</div>
+        </Card>
+      ) : promos.length === 0 ? (
+        <Card>
+          <div style={{ padding: 24, color: 'var(--c-textMuted)' }}>
+            No promos yet. Click <strong>+ New promo</strong> to add one.
+          </div>
+        </Card>
+      ) : (
+        <Table
+          rows={promos}
+          rowKey={r => r.id}
+          columns={[
+            {
+              key: 'code',
+              header: 'Code',
+              render: p => (
+                <code
+                  style={{
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    background: 'var(--c-divider)',
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                  }}
+                >
+                  {p.code}
+                </code>
+              ),
             },
-          },
-          {
-            key: 'actions',
-            header: '',
-            align: 'right',
-            render: (p) => (
-              <Button size="sm" variant="secondary" onClick={() => setEditing(p)}>
-                Edit
-              </Button>
-            ),
-          },
-        ]}
-      />
+            {
+              key: 'value',
+              header: 'Discount',
+              render: describeValue,
+            },
+            {
+              key: 'min',
+              header: 'Min trip',
+              render: p => (p.minTripAmount ? formatNaira(p.minTripAmount) : '—'),
+              align: 'right',
+            },
+            {
+              key: 'usage',
+              header: 'Usage',
+              render: p =>
+                `${p.usageCount.toLocaleString()}${p.usageLimit ? ` / ${p.usageLimit.toLocaleString()}` : ''}`,
+              align: 'right',
+            },
+            {
+              key: 'window',
+              header: 'Window',
+              render: p => (
+                <span style={{ fontSize: 13 }}>
+                  {formatDate(p.startsAt)} → {formatDate(p.expiresAt)}
+                </span>
+              ),
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              render: p => {
+                const s = promoStatus(p);
+                return <Pill tone={s.tone}>{s.label}</Pill>;
+              },
+            },
+            {
+              key: 'actions',
+              header: '',
+              align: 'right',
+              render: p => (
+                <Button size="sm" variant="secondary" onClick={() => setEditing(p)}>
+                  Edit
+                </Button>
+              ),
+            },
+          ]}
+        />
+      )}
 
       <Card style={{ marginTop: 24 }}>
         <SectionTitle>Promo math</SectionTitle>
@@ -175,6 +205,93 @@ function PromoModal({
   );
   const [isActive, setIsActive] = useState(promo?.isActive ?? true);
 
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset when editing target changes
+  useEffect(() => {
+    setCode(promo?.code ?? '');
+    setKind(promo?.kind ?? 'percentage');
+    setValue(
+      promo
+        ? promo.kind === 'percentage'
+          ? String(promo.value)
+          : String(koboToNaira(promo.value))
+        : '',
+    );
+    setMaxDiscount(promo?.maxDiscount ? String(koboToNaira(promo.maxDiscount)) : '');
+    setMinTripAmount(promo?.minTripAmount ? String(koboToNaira(promo.minTripAmount)) : '');
+    setUsageLimit(promo?.usageLimit ? String(promo.usageLimit) : '');
+    setStartsAt(promo ? new Date(promo.startsAt).toISOString().slice(0, 10) : '');
+    setExpiresAt(promo ? new Date(promo.expiresAt).toISOString().slice(0, 10) : '');
+    setIsActive(promo?.isActive ?? true);
+    setError(null);
+  }, [promo, open]);
+
+  async function onSave() {
+    setError(null);
+    const trimmedCode = code.trim().toUpperCase();
+    if (!trimmedCode) {
+      setError('Code is required');
+      return;
+    }
+    if (!value) {
+      setError('Value is required');
+      return;
+    }
+    const startTs = startsAt ? new Date(startsAt).getTime() : Date.now();
+    const endTs = expiresAt ? new Date(expiresAt).getTime() : startTs + 30 * 86400000;
+    if (endTs <= startTs) {
+      setError('Expires must be after Starts');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const numericValue =
+        kind === 'percentage' ? Number(value) : nairaToKobo(Number(value));
+      await savePromo({
+        id: trimmedCode,
+        code: trimmedCode,
+        kind,
+        value: numericValue,
+        maxDiscount:
+          kind === 'percentage' && maxDiscount
+            ? nairaToKobo(Number(maxDiscount))
+            : undefined,
+        minTripAmount: minTripAmount ? nairaToKobo(Number(minTripAmount)) : undefined,
+        usageLimit: usageLimit ? Number(usageLimit) : undefined,
+        usageCount: promo?.usageCount ?? 0,
+        startsAt: startTs,
+        expiresAt: endTs,
+        isActive,
+        createdBy: promo?.createdBy ?? 'test-admin-123',
+        createdAt: promo?.createdAt ?? Date.now(),
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDelete() {
+    if (!promo) return;
+    if (!confirm(`Delete "${promo.code}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deletePromo(promo.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Modal
       open={open}
@@ -183,10 +300,22 @@ function PromoModal({
       width={560}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          {promo && (
+            <Button
+              variant="ghost"
+              onClick={onDelete}
+              disabled={saving || deleting}
+              style={{ marginRight: 'auto', color: 'var(--c-error)' }}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onClose} disabled={saving || deleting}>
             Cancel
           </Button>
-          <Button onClick={onClose}>{promo ? 'Save changes' : 'Create promo'}</Button>
+          <Button onClick={onSave} disabled={saving || deleting}>
+            {saving ? 'Saving…' : promo ? 'Save changes' : 'Create promo'}
+          </Button>
         </>
       }
     >
@@ -200,16 +329,14 @@ function PromoModal({
         <Field label="Code">
           <Input
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            onChange={e => setCode(e.target.value.toUpperCase())}
             placeholder="WELCOME20"
+            disabled={!!promo}
             style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
           />
         </Field>
         <Field label="Type">
-          <Select
-            value={kind}
-            onChange={(e) => setKind(e.target.value as PromoKind)}
-          >
+          <Select value={kind} onChange={e => setKind(e.target.value as PromoKind)}>
             <option value="percentage">Percentage off</option>
             <option value="fixed">Fixed amount off</option>
           </Select>
@@ -219,7 +346,7 @@ function PromoModal({
             type="number"
             min={0}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={e => setValue(e.target.value)}
             placeholder={kind === 'percentage' ? '20' : '300'}
           />
         </Field>
@@ -231,7 +358,7 @@ function PromoModal({
             type="number"
             min={0}
             value={maxDiscount}
-            onChange={(e) => setMaxDiscount(e.target.value)}
+            onChange={e => setMaxDiscount(e.target.value)}
             placeholder="500"
             disabled={kind === 'fixed'}
           />
@@ -241,7 +368,7 @@ function PromoModal({
             type="number"
             min={0}
             value={minTripAmount}
-            onChange={(e) => setMinTripAmount(e.target.value)}
+            onChange={e => setMinTripAmount(e.target.value)}
             placeholder="1000"
           />
         </Field>
@@ -250,7 +377,7 @@ function PromoModal({
             type="number"
             min={0}
             value={usageLimit}
-            onChange={(e) => setUsageLimit(e.target.value)}
+            onChange={e => setUsageLimit(e.target.value)}
             placeholder="1000"
           />
         </Field>
@@ -258,14 +385,14 @@ function PromoModal({
           <Input
             type="date"
             value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
+            onChange={e => setStartsAt(e.target.value)}
           />
         </Field>
         <Field label="Expires">
           <Input
             type="date"
             value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
+            onChange={e => setExpiresAt(e.target.value)}
           />
         </Field>
       </div>
@@ -280,10 +407,26 @@ function PromoModal({
         <input
           type="checkbox"
           checked={isActive}
-          onChange={(e) => setIsActive(e.target.checked)}
+          onChange={e => setIsActive(e.target.checked)}
         />
         <span>Active — passengers can apply this code</span>
       </label>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: 10,
+            background: 'var(--c-errorSoft, #FEE2E2)',
+            color: 'var(--c-error, #B91C1C)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       {kind === 'fixed' && value && (
         <div
           style={{

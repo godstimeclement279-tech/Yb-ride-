@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Pressable, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from './Text';
 import { Badge } from './Badge';
@@ -39,6 +39,7 @@ export function CarOptionCard({
   promo,
 }: CarOptionCardProps) {
   const { colors, radius, spacing } = useTheme();
+  const [imageBroken, setImageBroken] = useState(false);
 
   const eta = etaSeconds
     ? etaSeconds < 60
@@ -71,9 +72,19 @@ export function CarOptionCard({
           backgroundColor: tileBg,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
-        <Text style={{ fontSize: 26 }}>{ICON[carType.id] ?? '🚕'}</Text>
+        {carType.iconUrl && !imageBroken ? (
+          <Image
+            source={{ uri: carType.iconUrl }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="contain"
+            onError={() => setImageBroken(true)}
+          />
+        ) : (
+          <Text style={{ fontSize: 26 }}>{ICON[carType.id] ?? '🚕'}</Text>
+        )}
       </View>
 
       <View style={{ flex: 1, gap: 2 }}>

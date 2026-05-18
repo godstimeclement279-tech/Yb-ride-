@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
@@ -36,7 +36,11 @@ export function AddAddressScreen() {
   };
 
   return (
-    <Screen scroll>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Screen scroll>
       <Header title={editing ? 'Edit Address' : 'Add Address'} back />
 
       <Card variant="soft">
@@ -95,6 +99,7 @@ export function AddAddressScreen() {
       {editing && (
         <Button label="Delete" variant="danger" onPress={() => navigation.goBack()} />
       )}
-    </Screen>
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }

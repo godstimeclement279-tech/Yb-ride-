@@ -7,9 +7,11 @@ export type LocationSearchMode = 'pickup' | 'dropoff';
 export type RootStackParamList = {
   Main: undefined;
   LocationSearch: { mode: LocationSearchMode };
+  MapPicker: { mode: LocationSearchMode } | undefined;
   FareBreakdown: undefined;
   Payment: { bookingId: string };
   TripTracking: { bookingId: string };
+  Rating: { bookingId: string };
   Receipt: { bookingId: string };
   SavedAddresses: undefined;
   AddAddress: { addressId?: string } | undefined;

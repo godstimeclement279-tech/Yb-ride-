@@ -1,0 +1,54 @@
+module.exports = () => ({
+  expo: {
+    name: 'YB Ride Driver',
+    slug: 'yb-ride-driver',
+    version: '0.0.1',
+    orientation: 'portrait',
+    icon: './assets/icon.png',
+    scheme: 'ybridedriver',
+    userInterfaceStyle: 'automatic',
+    newArchEnabled: true,
+    splash: {
+      image: './assets/splash-icon.png',
+      resizeMode: 'contain',
+      backgroundColor: '#1E3A8A',
+    },
+    ios: {
+      supportsTablet: false,
+      bundleIdentifier: 'com.ybride.driver',
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription:
+          'YB Ride uses your location to share live position with passengers and staff while you are online.',
+      },
+    },
+    android: {
+      package: 'com.ybride.driver',
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+      adaptiveIcon: {
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#1E3A8A',
+      },
+      permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'],
+    },
+    web: {
+      bundler: 'metro',
+      output: 'single',
+      favicon: './assets/favicon.png',
+    },
+    plugins: [
+      [
+        '@rnmapbox/maps',
+        {
+          RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOAD_TOKEN,
+        },
+      ],
+    ],
+    extra: {
+      eas: {
+        projectId: '3be49560-a223-440e-acb2-90f5e6d45e3b',
+      },
+    },
+    owner: 'geetees',
+  },
+});

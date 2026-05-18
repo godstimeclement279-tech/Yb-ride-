@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -92,7 +92,11 @@ export function LocationSearchScreen() {
   });
 
   return (
-    <Screen background="background" scroll edges={['top', 'bottom']}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Screen background="background" scroll edges={['top', 'bottom']}>
       <Header title="Select Location" back />
 
       {/* Pickup + Destination — both editable. The active field has a stronger border. */}
@@ -179,7 +183,7 @@ export function LocationSearchScreen() {
             label="Set on Map"
             variant="secondary"
             leading={<Text>🗺</Text>}
-            onPress={() => {}}
+            onPress={() => navigation.navigate('MapPicker', { mode: activeMode })}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -258,6 +262,7 @@ export function LocationSearchScreen() {
           )}
         </>
       )}
-    </Screen>
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }

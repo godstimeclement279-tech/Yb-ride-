@@ -1,24 +1,15 @@
 import React from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { Header } from '../components/Header';
 import { Divider } from '../components/Divider';
-import { Button } from '../components/Button';
 import { useTheme } from '../theme/ThemeProvider';
-import { useAuth } from '../context/AuthContext';
 
 export function SettingsScreen() {
   const { mode, setMode, spacing } = useTheme();
-  const { signOut } = useAuth() as any;
-
-  const onSignOut = () =>
-    Alert.alert('Sign out?', 'You will need to sign in again to book rides.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: signOut ?? (() => {}) },
-    ]);
 
   return (
     <Screen scroll>
@@ -51,10 +42,6 @@ export function SettingsScreen() {
           For payment, account, or trip issues, contact YB Ride support via the Help Center.
         </Text>
       </Card>
-
-      {signOut && (
-        <Button label="Sign out" variant="danger" onPress={onSignOut} />
-      )}
 
       <View style={{ alignItems: 'center', marginTop: spacing.md }}>
         <Text variant="caption" color="subtle">YB Ride · v0.0.1</Text>

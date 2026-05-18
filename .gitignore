@@ -59,3 +59,10 @@ firestore-debug.log
 
 # Test
 coverage/
+
+# Claude tooling artifacts (per-machine state, not source)
+.claude/
+.claude-flow/
+.swarm/
+ruvector.db
+*.ruvector.db

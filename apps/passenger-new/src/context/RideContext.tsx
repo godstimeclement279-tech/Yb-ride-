@@ -26,6 +26,7 @@ import {
 import { useAuth } from './AuthContext';
 import { subscribeCarTypes } from '../services/firebase/carTypesService';
 import { subscribeZones } from '../services/firebase/zonesService';
+import { subscribePromos } from '../services/firebase/promosService';
 import {
   createBooking as fbCreateBooking,
   updateBooking as fbUpdateBooking,
@@ -99,7 +100,7 @@ export function RideProvider({ children }: PropsWithChildren) {
   const [carTypes, setCarTypes] = useState<CarType[]>(MOCK_CAR_TYPES);
   const [zones, setZones] = useState<Zone[]>(MOCK_ZONES);
   const [carType, setCarType] = useState<CarType | null>(MOCK_CAR_TYPES[0] ?? null);
-  const [promos] = useState<Promo[]>(MOCK_PROMOS);
+  const [promos, setPromos] = useState<Promo[]>(MOCK_PROMOS);
 
   useEffect(() => {
     const unsubA = subscribeCarTypes(types => {
@@ -109,9 +110,11 @@ export function RideProvider({ children }: PropsWithChildren) {
       );
     });
     const unsubB = subscribeZones(setZones);
+    const unsubC = subscribePromos(setPromos);
     return () => {
       unsubA();
       unsubB();
+      unsubC();
     };
   }, []);
 

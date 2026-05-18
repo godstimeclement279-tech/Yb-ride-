@@ -166,6 +166,12 @@ export interface Booking {
   createdAt: number;
   paidAt?: number;
   assignedAt?: number;
+  // Driver acknowledged + accepted the offer. While status='assigned' and
+  // acceptedAt is undefined, the booking is "offered" and the driver app
+  // shows accept/decline. acceptedAt set → driver is en route.
+  acceptedAt?: number;
+  // Drivers that declined this booking — staff should re-assign elsewhere.
+  declinedDriverIds?: string[];
   driverArrivedAt?: number;
   startedAt?: number;
   completedAt?: number;

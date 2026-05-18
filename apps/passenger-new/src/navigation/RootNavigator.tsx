@@ -6,9 +6,11 @@ import { MainTabs } from './MainTabs';
 import type { RootStackParamList } from './types';
 
 import { LocationSearchScreen } from '../screens/LocationSearchScreen';
+import { MapPickerScreen } from '../screens/MapPickerScreen';
 import { FareBreakdownScreen } from '../screens/FareBreakdownScreen';
 import { PaymentScreen } from '../screens/PaymentScreen';
 import { TripTrackingScreen } from '../screens/TripTrackingScreen';
+import { RatingScreen } from '../screens/RatingScreen';
 import { ReceiptScreen } from '../screens/ReceiptScreen';
 import { SavedAddressesScreen } from '../screens/SavedAddressesScreen';
 import { AddAddressScreen } from '../screens/AddAddressScreen';
@@ -65,9 +67,15 @@ export function RootNavigator() {
           component={LocationSearchScreen}
           options={{ presentation: 'modal' }}
         />
+        <Stack.Screen
+          name="MapPicker"
+          component={MapPickerScreen}
+          options={{ presentation: 'modal' }}
+        />
         <Stack.Screen name="FareBreakdown" component={FareBreakdownScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="TripTracking" component={TripTrackingScreen} />
+        <Stack.Screen name="Rating" component={RatingScreen} />
         <Stack.Screen name="Receipt" component={ReceiptScreen} />
         <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
         <Stack.Screen

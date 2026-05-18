@@ -11,7 +11,7 @@ import { Screen } from '../components/Screen';
 import { Divider } from '../components/Divider';
 import { StatusBadge } from '../components/StatusBadge';
 import { StarRating } from '../components/StarRating';
-import { MapPlaceholder } from '../components/MapPlaceholder';
+import { Map } from '../components/Map';
 import { formatNaira, formatDistance, formatDuration } from '@yb/shared';
 import { MOCK_ACTIVE_PASSENGER } from '../data/mockData';
 import type { RootStackParamList } from '../navigation/types';
@@ -104,11 +104,11 @@ export function ActiveTripScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <MapPlaceholder
+      <Map
         style={{ height: 220 }}
-        hasRoute
-        pickupLabel={activeBooking.pickup.label}
-        dropoffLabel={activeBooking.dropoff.label}
+        pickup={activeBooking.pickup.point}
+        dropoff={activeBooking.dropoff.point}
+        showRoute
       />
 
       <ScrollView

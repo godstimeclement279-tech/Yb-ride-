@@ -1,14 +1,14 @@
-import React, { useEffect } from 'react';
-import { Alert, Linking, View } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import { Alert, BackHandler, Linking, Pressable, Share, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
 import { BottomSheet } from '../components/BottomSheet';
-import { MapPlaceholder } from '../components/MapPlaceholder';
+import { Map } from '../components/Map';
+import { subscribeDriverLocation } from '../services/firebase/passengerLocationService';
 import { Avatar } from '../components/Avatar';
 import { IconButton } from '../components/IconButton';
 import { SegmentedProgress } from '../components/SegmentedProgress';
@@ -36,37 +36,9 @@ export function TripTrackingScreen() {
 
   const booking = getBooking(route.params.bookingId);
 
-  // Auto-advance through statuses for the demo flow.
-  // Sequence starts at 'paid' so the trip moves forward right after payment.
-  useEffect(() => {
-    if (!booking) return;
-    const seq: BookingStatus[] = [
-      'paid',
-      'assigned',
-      'driver_arrived',
-      'in_progress',
-      'completed',
-    ];
-    const order = seq.indexOf(booking.status);
-    if (order < 0 || order === seq.length - 1) return;
-
-    const next = seq[order + 1]!;
-    const delays: Partial<Record<BookingStatus, number>> = {
-      paid: 2500,
-      assigned: 4000,
-      driver_arrived: 5000,
-      in_progress: 6000,
-    };
-    const t = setTimeout(() => {
-      const patch: Record<string, unknown> = { status: next };
-      if (next === 'assigned') patch.assignedAt = Date.now();
-      if (next === 'driver_arrived') patch.driverArrivedAt = Date.now();
-      if (next === 'in_progress') patch.startedAt = Date.now();
-      if (next === 'completed') patch.completedAt = Date.now();
-      updateBooking(booking.id, patch as any);
-    }, delays[booking.status] ?? 4000);
-    return () => clearTimeout(t);
-  }, [booking?.status, booking?.id, updateBooking]);
+  // Trip status flows entirely from Firestore now. Staff assigns the driver,
+  // the driver app drives every subsequent transition (arrived / in_progress /
+  // completed). The passenger app is a read-only consumer of that state.
 
   if (!booking) {
     return (
@@ -103,16 +75,62 @@ export function TripTrackingScreen() {
 
   const isFinal = booking.status === 'completed' || booking.status === 'cancelled';
 
+  // Live driver location subscription — wakes when staff assigns a driver
+  // and the driver app pushes pings to RTDB.
+  const [driverLocation, setDriverLocation] = React.useState<
+    { latitude: number; longitude: number } | null
+  >(null);
+  React.useEffect(() => {
+    if (!booking.driverId || isFinal) {
+      setDriverLocation(null);
+      return;
+    }
+    const unsub = subscribeDriverLocation(booking.driverId, setDriverLocation);
+    return unsub;
+  }, [booking.driverId, isFinal]);
+
+  const confirmExit = useCallback(() => {
+    if (isFinal) {
+      navigation.goBack();
+      return true;
+    }
+    Alert.alert(
+      'Leave active trip?',
+      'Your driver is still on the way. Leaving this screen does not cancel the trip.',
+      [
+        { text: 'Stay', style: 'cancel' },
+        { text: 'Leave', onPress: () => navigation.goBack() },
+      ],
+    );
+    return true;
+  }, [isFinal, navigation]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', confirmExit);
+    return () => sub.remove();
+  }, [confirmExit]);
+
+  const shareTrip = async () => {
+    try {
+      await Share.share({
+        message: `Tracking my YB Ride from ${booking.pickup.label} to ${booking.dropoff.label}. ETA ${booking.status === 'in_progress' ? '12' : '4'} mins.`,
+      });
+    } catch {
+      /* user cancelled */
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Map fills upper portion */}
       <View style={{ flex: 1 }}>
-        <MapPlaceholder
+        <Map
           style={{ flex: 1 }}
-          hasRoute
-          pickupLabel={booking.pickup.label}
-          dropoffLabel={booking.dropoff.label}
-          showAttribution={false}
+          pickup={booking.pickup.point}
+          dropoff={booking.dropoff.point}
+          driverLocation={driverLocation}
+          showRoute
+          bottomPadding={360}
         />
 
         <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
@@ -125,9 +143,12 @@ export function TripTrackingScreen() {
               paddingTop: spacing.sm,
             }}
           >
-            <IconButton glyph="‹" onPress={() => navigation.goBack()} />
+            <IconButton glyph="‹" onPress={confirmExit} />
             <Pill />
-            <View
+            <Pressable
+              onPress={() =>
+                Alert.alert('Help', 'Contact support at +234 800 000 0000 or via Help Center.')
+              }
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -140,7 +161,7 @@ export function TripTrackingScreen() {
             >
               <Text>📞</Text>
               <Text variant="smallStrong">Help</Text>
-            </View>
+            </Pressable>
           </View>
 
           {/* Segmented progress floating over the map */}
@@ -189,7 +210,7 @@ export function TripTrackingScreen() {
             </Text>
           </View>
           <IconButton glyph="📞" onPress={callDriver} variant="card" />
-          <IconButton glyph="⊕" onPress={() => {}} variant="card" />
+          <IconButton glyph="⊕" onPress={shareTrip} variant="card" />
         </View>
 
         <Divider />
@@ -234,6 +255,9 @@ export function TripTrackingScreen() {
                 label="Safety Toolkit"
                 variant="secondary"
                 leading={<Text>🛡</Text>}
+                onPress={() =>
+                  Alert.alert('Safety Toolkit', 'Share trip, emergency call, and trusted contacts coming soon.')
+                }
               />
             </View>
             <View style={{ flex: 1 }}>
@@ -246,8 +270,13 @@ export function TripTrackingScreen() {
           </View>
         ) : (
           <Button
-            label="View Receipt"
-            onPress={() => navigation.replace('Receipt', { bookingId: booking.id })}
+            label="Rate Your Trip"
+            onPress={() =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Rating', params: { bookingId: booking.id } }],
+              })
+            }
             size="lg"
           />
         )}

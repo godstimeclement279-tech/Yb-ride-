@@ -20,13 +20,13 @@ export interface FirebaseConfig {
 }
 
 export const FIREBASE_CONFIG: FirebaseConfig = {
-  apiKey: 'PASTE_API_KEY',
-  authDomain: 'PASTE_AUTH_DOMAIN',
-  projectId: 'PASTE_PROJECT_ID',
-  storageBucket: 'PASTE_STORAGE_BUCKET',
-  messagingSenderId: 'PASTE_SENDER_ID',
-  appId: 'PASTE_APP_ID',
-  databaseURL: 'PASTE_DATABASE_URL',
+  apiKey: 'AIzaSyBDQefp71mA1_02K-hRbeIcc7Uq33JpNlg',
+  authDomain: 'yb-ride-fe206.firebaseapp.com',
+  projectId: 'yb-ride-fe206',
+  storageBucket: 'yb-ride-fe206.firebasestorage.app',
+  messagingSenderId: '191199341592',
+  appId: '1:191199341592:web:b8f0e8d574222124bc676d',
+  databaseURL: 'https://yb-ride-fe206-default-rtdb.europe-west1.firebasedatabase.app',
 };
 
 export const FIREBASE_CONFIGURED =
