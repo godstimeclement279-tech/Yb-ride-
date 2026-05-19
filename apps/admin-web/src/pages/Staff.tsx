@@ -14,6 +14,7 @@ import {
 } from '../components/ui';
 import { mockStaff } from '../data/mock';
 import { formatRelative } from '../utils/format';
+import { createStaffViaCallable } from '../services/firebase/functions';
 
 const ALL_PERMISSIONS: { id: StaffPermission; label: string; description: string }[] = [
   {
@@ -167,9 +168,16 @@ export function Staff() {
 }
 
 function CreateStaffModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState(generateTempPassword());
   const [permissions, setPermissions] = useState<Set<StaffPermission>>(
     new Set(['view_bookings', 'assign_drivers']),
   );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ email: string; password: string } | null>(null);
 
   function toggle(p: StaffPermission) {
     setPermissions((prev) => {
@@ -180,18 +188,105 @@ function CreateStaffModal({ open, onClose }: { open: boolean; onClose: () => voi
     });
   }
 
+  function reset() {
+    setName('');
+    setPhone('');
+    setEmail('');
+    setPassword(generateTempPassword());
+    setPermissions(new Set(['view_bookings', 'assign_drivers']));
+    setError(null);
+    setSuccess(null);
+    setSubmitting(false);
+  }
+
+  function close() {
+    reset();
+    onClose();
+  }
+
+  async function submit() {
+    if (!name.trim() || !email.trim() || !phone.trim()) {
+      setError('Name, email, and phone are required.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await createStaffViaCallable({
+        role: 'staff',
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        phone: phone.trim(),
+        permissions: Array.from(permissions),
+      });
+      setSuccess({ email: email.trim(), password });
+    } catch (e: unknown) {
+      const msg =
+        typeof e === 'object' && e && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : 'Could not create staff account.';
+      setError(friendlyError(msg));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (success) {
+    return (
+      <Modal
+        open={open}
+        onClose={close}
+        title="Staff account created"
+        width={520}
+        footer={<Button onClick={close}>Done</Button>}
+      >
+        <div style={{ fontSize: 14, color: 'var(--c-textMuted)', marginBottom: 12 }}>
+          Share these credentials with the new staff member. They sign in at the
+          staff dashboard. Ask them to change the password on first login.
+        </div>
+        <div
+          style={{
+            background: 'var(--c-divider)',
+            padding: 12,
+            borderRadius: 8,
+            display: 'grid',
+            gap: 6,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontSize: 13,
+          }}
+        >
+          <div>
+            <span style={{ color: 'var(--c-textMuted)' }}>Email:</span>{' '}
+            <strong>{success.email}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--c-textMuted)' }}>Password:</span>{' '}
+            <strong>{success.password}</strong>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={close}
       title="Add staff member"
       width={520}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={onClose}>Create staff</Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? 'Creating…' : 'Create staff'}
+          </Button>
         </>
       }
     >
@@ -203,16 +298,33 @@ function CreateStaffModal({ open, onClose }: { open: boolean; onClose: () => voi
         }}
       >
         <Field label="Full name">
-          <Input placeholder="Ngozi Eze" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ngozi Eze"
+          />
         </Field>
         <Field label="Phone">
-          <Input placeholder="+234…" />
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+234…"
+          />
         </Field>
         <Field label="Email">
-          <Input type="email" placeholder="staff@ybride.ng" />
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="staff@ybride.ng"
+          />
         </Field>
         <Field label="Initial password">
-          <Input type="text" defaultValue="staff123" />
+          <Input
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </Field>
       </div>
 
@@ -256,6 +368,50 @@ function CreateStaffModal({ open, onClose }: { open: boolean; onClose: () => voi
           ))}
         </div>
       </div>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: 10,
+            background: 'var(--c-errorSoft)',
+            color: 'var(--c-error)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
     </Modal>
   );
+}
+
+// Generate an easy-to-read temp password (no ambiguous I / 0 / O / 1 / l).
+// Operator can override before submitting.
+function generateTempPassword(length = 10): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+// Map raw Firebase callable errors into operator-readable copy.
+function friendlyError(msg: string): string {
+  const lower = msg.toLowerCase();
+  if (lower.includes('unauthenticated') || lower.includes('not authenticated')) {
+    return 'Sign in as an admin first. Auth gate ships next.';
+  }
+  if (lower.includes('permission-denied')) {
+    return 'Your account does not have admin privileges.';
+  }
+  if (lower.includes('already-exists') || lower.includes('email or phone')) {
+    return 'Email or phone is already in use. Try another.';
+  }
+  if (lower.includes('invalid-argument')) {
+    return 'One or more fields are invalid. Check email + phone format.';
+  }
+  return msg;
 }
