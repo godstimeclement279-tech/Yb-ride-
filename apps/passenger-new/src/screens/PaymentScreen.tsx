@@ -11,7 +11,7 @@ import { Header } from '../components/Header';
 import { Divider } from '../components/Divider';
 import { StepIndicator } from '../components/StepIndicator';
 import { useRide } from '../context/RideContext';
-import { useAuth } from '../context/AuthContext';
+import { usePassenger } from '../context/AuthContext';
 import { PaystackCheckout } from '../components/PaystackCheckout';
 import { formatNaira, formatNairaExact, formatDistance } from '@yb/shared';
 import type { RootStackParamList } from '../navigation/types';
@@ -29,7 +29,7 @@ export function PaymentScreen() {
   const route = useRoute<Route>();
   const { colors, spacing, radius } = useTheme();
   const { getBooking, updateBooking, totalAfterPromoKobo, setPaymentMethod } = useRide();
-  const { user } = useAuth();
+  const user = usePassenger();
 
   const booking = getBooking(route.params.bookingId);
   const [paying, setPaying] = useState(false);

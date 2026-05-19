@@ -23,7 +23,7 @@ import {
   MOCK_PROMOS,
   MOCK_ZONES,
 } from '../data/mockData';
-import { useAuth } from './AuthContext';
+import { usePassenger } from './AuthContext';
 import { subscribeCarTypes } from '../services/firebase/carTypesService';
 import { subscribeZones } from '../services/firebase/zonesService';
 import { subscribePromos } from '../services/firebase/promosService';
@@ -88,7 +88,7 @@ function applyPromoToFare(
 }
 
 export function RideProvider({ children }: PropsWithChildren) {
-  const { user } = useAuth();
+  const user = usePassenger();
   const [pickup, setPickup] = useState<Address | null>(MOCK_CURRENT_LOCATION);
   const [dropoff, setDropoff] = useState<Address | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);

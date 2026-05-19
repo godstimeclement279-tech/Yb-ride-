@@ -15,7 +15,7 @@ import { Badge } from '../components/Badge';
 import { IconButton } from '../components/IconButton';
 import { IconTile } from '../components/IconTile';
 import { useTheme } from '../theme/ThemeProvider';
-import { useAuth } from '../context/AuthContext';
+import { usePassenger } from '../context/AuthContext';
 import { useRide } from '../context/RideContext';
 import {
   MOCK_ETA_SECONDS,
@@ -44,7 +44,7 @@ function iconForPlace(label: string): string {
 export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
-  const { user } = useAuth();
+  const user = usePassenger();
   const insets = useSafeAreaInsets();
   const {
     pickup,

@@ -8,11 +8,11 @@ import { Header } from '../components/Header';
 import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
 import { useTheme } from '../theme/ThemeProvider';
-import { useAuth } from '../context/AuthContext';
+import { usePassenger } from '../context/AuthContext';
 
 export function EditProfileScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const user = usePassenger();
   const { colors, spacing, radius, typography } = useTheme();
 
   const [name, setName] = useState(user.name);

@@ -1,10 +1,14 @@
 import React from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
+import { useAuth } from '../context/AuthContext';
 import { MainTabs } from './MainTabs';
-import type { RootStackParamList } from './types';
+import type { AuthStackParamList, RootStackParamList } from './types';
 
+import { LoginScreen } from '../screens/LoginScreen';
+import { SignupScreen } from '../screens/SignupScreen';
 import { LocationSearchScreen } from '../screens/LocationSearchScreen';
 import { MapPickerScreen } from '../screens/MapPickerScreen';
 import { FareBreakdownScreen } from '../screens/FareBreakdownScreen';
@@ -23,10 +27,12 @@ import { PrivacyScreen } from '../screens/PrivacyScreen';
 import { LegalScreen } from '../screens/LegalScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
 export function RootNavigator() {
   const theme = useTheme();
+  const { status } = useAuth();
 
   const navTheme =
     theme.mode === 'dark'
@@ -53,45 +59,68 @@ export function RootNavigator() {
           },
         };
 
+  // While the persisted Firebase Auth session resolves on first render show
+  // a centered spinner — keeps us from flashing the Login screen to a user
+  // who is actually signed in.
+  if (status === 'loading') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.colors.background },
-        }}
-      >
-        <Stack.Screen name="Main" component={MainTabs} />
-        <Stack.Screen
-          name="LocationSearch"
-          component={LocationSearchScreen}
-          options={{ presentation: 'modal' }}
-        />
-        <Stack.Screen
-          name="MapPicker"
-          component={MapPickerScreen}
-          options={{ presentation: 'modal' }}
-        />
-        <Stack.Screen name="FareBreakdown" component={FareBreakdownScreen} />
-        <Stack.Screen name="Payment" component={PaymentScreen} />
-        <Stack.Screen name="TripTracking" component={TripTrackingScreen} />
-        <Stack.Screen name="Rating" component={RatingScreen} />
-        <Stack.Screen name="Receipt" component={ReceiptScreen} />
-        <Stack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
-        <Stack.Screen
-          name="AddAddress"
-          component={AddAddressScreen}
-          options={{ presentation: 'modal' }}
-        />
-        <Stack.Screen name="PromoCodes" component={PromoCodesScreen} />
-        <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-        <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
-        <Stack.Screen name="Privacy" component={PrivacyScreen} />
-        <Stack.Screen name="Legal" component={LegalScreen} />
-        <Stack.Screen name="Settings" component={SettingsScreen} />
-      </Stack.Navigator>
+      {status === 'signed_in' ? (
+        <RootStack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+        >
+          <RootStack.Screen name="Main" component={MainTabs} />
+          <RootStack.Screen
+            name="LocationSearch"
+            component={LocationSearchScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <RootStack.Screen
+            name="MapPicker"
+            component={MapPickerScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <RootStack.Screen name="FareBreakdown" component={FareBreakdownScreen} />
+          <RootStack.Screen name="Payment" component={PaymentScreen} />
+          <RootStack.Screen name="TripTracking" component={TripTrackingScreen} />
+          <RootStack.Screen name="Rating" component={RatingScreen} />
+          <RootStack.Screen name="Receipt" component={ReceiptScreen} />
+          <RootStack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
+          <RootStack.Screen
+            name="AddAddress"
+            component={AddAddressScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <RootStack.Screen name="PromoCodes" component={PromoCodesScreen} />
+          <RootStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+          <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+          <RootStack.Screen name="EditProfile" component={EditProfileScreen} />
+          <RootStack.Screen name="HelpCenter" component={HelpCenterScreen} />
+          <RootStack.Screen name="Privacy" component={PrivacyScreen} />
+          <RootStack.Screen name="Legal" component={LegalScreen} />
+          <RootStack.Screen name="Settings" component={SettingsScreen} />
+        </RootStack.Navigator>
+      ) : (
+        <AuthStack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.background },
+          }}
+        >
+          <AuthStack.Screen name="Login" component={LoginScreen} />
+          <AuthStack.Screen name="Signup" component={SignupScreen} />
+        </AuthStack.Navigator>
+      )}
     </NavigationContainer>
   );
 }

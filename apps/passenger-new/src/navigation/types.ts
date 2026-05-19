@@ -4,6 +4,12 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 
 export type LocationSearchMode = 'pickup' | 'dropoff';
 
+// Pre-auth screens. Mounted instead of RootStack while status='signed_out'.
+export type AuthStackParamList = {
+  Login: undefined;
+  Signup: undefined;
+};
+
 export type RootStackParamList = {
   Main: undefined;
   LocationSearch: { mode: LocationSearchMode };

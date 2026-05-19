@@ -12,15 +12,33 @@ import { Badge } from '../components/Badge';
 import { SectionLabel } from '../components/SectionLabel';
 import { Divider } from '../components/Divider';
 import { useTheme } from '../theme/ThemeProvider';
-import { useAuth } from '../context/AuthContext';
+import { usePassenger, useAuth } from '../context/AuthContext';
+import { Alert } from 'react-native';
+import { Button } from '../components/Button';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function ProfileScreen() {
   const navigation = useNavigation<Nav>();
-  const { user } = useAuth();
+  const user = usePassenger();
+  const { signOut } = useAuth();
   const { spacing, colors } = useTheme();
+
+  const onSignOut = () => {
+    Alert.alert('Sign out?', 'You will need to sign in again to book rides.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          signOut().catch(() => {
+            Alert.alert('Could not sign out', 'Try again in a moment.');
+          });
+        },
+      },
+    ]);
+  };
 
   return (
     <Screen scroll>
@@ -151,6 +169,8 @@ export function ProfileScreen() {
           style={{ paddingHorizontal: spacing.base }}
         />
       </Card>
+
+      <Button label="Sign out" variant="danger" onPress={onSignOut} />
 
       <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
         <Text variant="caption" color="subtle">
