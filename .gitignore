@@ -66,3 +66,7 @@ coverage/
 .swarm/
 ruvector.db
 *.ruvector.db
+
+# Firebase Functions build output + local deps
+firebase/functions/lib/
+firebase/functions/node_modules/
