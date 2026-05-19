@@ -10,6 +10,4 @@ initializeApp();
 
 export { createStaffAccount } from './createStaffAccount';
 export { notifyOnBookingStatusChange } from './notifyOnBookingStatusChange';
-// paystackWebhook ships after PAYSTACK_SECRET is set in Secret Manager.
-// Re-enable this export once the secret exists.
-// export { paystackWebhook } from './paystackWebhook';
+export { paystackWebhook } from './paystackWebhook';
