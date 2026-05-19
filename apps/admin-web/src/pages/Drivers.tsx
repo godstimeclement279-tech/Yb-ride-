@@ -13,6 +13,7 @@ import {
 } from '../components/ui';
 import { ApprovalPill, DriverStatusPill } from '../components/status';
 import { mockCarTypes, mockDrivers } from '../data/mock';
+import { createStaffViaCallable } from '../services/firebase/functions';
 import { formatNaira, formatRelative } from '../utils/format';
 
 const STATUS_FILTERS: ('all' | DriverStatus | 'pending')[] = [
@@ -172,18 +173,141 @@ export function Drivers() {
 }
 
 function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const firstCarType = mockCarTypes[0]?.id ?? 'standard';
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [carTypeId, setCarTypeId] = useState<string>(firstCarType);
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [year, setYear] = useState<string>(String(new Date().getFullYear() - 5));
+  const [plate, setPlate] = useState('');
+  const [color, setColor] = useState('');
+  const [password, setPassword] = useState(generateTempPassword());
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ email: string; password: string } | null>(null);
+
+  function reset() {
+    setName('');
+    setPhone('');
+    setEmail('');
+    setCarTypeId(firstCarType);
+    setMake('');
+    setModel('');
+    setYear(String(new Date().getFullYear() - 5));
+    setPlate('');
+    setColor('');
+    setPassword(generateTempPassword());
+    setSubmitting(false);
+    setError(null);
+    setSuccess(null);
+  }
+
+  function close() {
+    reset();
+    onClose();
+  }
+
+  async function submit() {
+    if (
+      !name.trim() || !phone.trim() || !email.trim() ||
+      !make.trim() || !model.trim() || !plate.trim() || !color.trim()
+    ) {
+      setError('Fill every field.');
+      return;
+    }
+    const yearNum = parseInt(year, 10);
+    if (Number.isNaN(yearNum) || yearNum < 1980 || yearNum > new Date().getFullYear() + 1) {
+      setError('Year looks wrong.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await createStaffViaCallable({
+        role: 'driver',
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        phone: phone.trim(),
+        carTypeId,
+        vehicle: {
+          make: make.trim(),
+          model: model.trim(),
+          year: yearNum,
+          plate: plate.trim().toUpperCase(),
+          color: color.trim(),
+        },
+      });
+      setSuccess({ email: email.trim(), password });
+    } catch (e: unknown) {
+      const msg =
+        typeof e === 'object' && e && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : 'Could not create driver account.';
+      setError(friendlyError(msg));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (success) {
+    return (
+      <Modal
+        open={open}
+        onClose={close}
+        title="Driver account created"
+        width={520}
+        footer={<Button onClick={close}>Done</Button>}
+      >
+        <div style={{ fontSize: 14, color: 'var(--c-textMuted)', marginBottom: 12 }}>
+          Share these credentials with the driver. They sign in at the driver
+          app. The account stays <strong>inactive</strong> until you approve them
+          from the Drivers list.
+        </div>
+        <div
+          style={{
+            background: 'var(--c-divider)',
+            padding: 12,
+            borderRadius: 8,
+            display: 'grid',
+            gap: 6,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            fontSize: 13,
+          }}
+        >
+          <div>
+            <span style={{ color: 'var(--c-textMuted)' }}>Email:</span>{' '}
+            <strong>{success.email}</strong>
+          </div>
+          <div>
+            <span style={{ color: 'var(--c-textMuted)' }}>Password:</span>{' '}
+            <strong>{success.password}</strong>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={close}
       title="Add driver"
       width={560}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={close} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={onClose}>Create driver</Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? 'Creating…' : 'Create driver'}
+          </Button>
         </>
       }
     >
@@ -195,16 +319,32 @@ function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => vo
         }}
       >
         <Field label="Full name">
-          <Input placeholder="e.g. Emeka Obi" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Emeka Obi"
+          />
         </Field>
         <Field label="Phone">
-          <Input placeholder="+234…" />
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+234…"
+          />
         </Field>
         <Field label="Email">
-          <Input type="email" placeholder="driver@ybride.ng" />
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="driver@ybride.ng"
+          />
         </Field>
         <Field label="Car tier">
-          <Select defaultValue="ct-standard">
+          <Select
+            value={carTypeId}
+            onChange={(e) => setCarTypeId(e.target.value)}
+          >
             {mockCarTypes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -213,24 +353,65 @@ function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => vo
           </Select>
         </Field>
         <Field label="Vehicle make">
-          <Input placeholder="Toyota" />
+          <Input
+            value={make}
+            onChange={(e) => setMake(e.target.value)}
+            placeholder="Toyota"
+          />
         </Field>
         <Field label="Vehicle model">
-          <Input placeholder="Corolla" />
+          <Input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="Corolla"
+          />
         </Field>
         <Field label="Year">
-          <Input type="number" placeholder="2018" />
+          <Input
+            type="number"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            placeholder="2018"
+          />
         </Field>
         <Field label="Plate">
-          <Input placeholder="AGB-XXX-XX" />
+          <Input
+            value={plate}
+            onChange={(e) => setPlate(e.target.value)}
+            placeholder="AGB-XXX-XX"
+          />
         </Field>
         <Field label="Color">
-          <Input placeholder="Silver" />
+          <Input
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            placeholder="Silver"
+          />
         </Field>
         <Field label="Initial password" hint="Driver will be asked to change on first login.">
-          <Input type="text" defaultValue="driver123" />
+          <Input
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </Field>
       </div>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: 10,
+            background: 'var(--c-errorSoft)',
+            color: 'var(--c-error)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <p
         style={{
           marginTop: 14,
@@ -238,9 +419,35 @@ function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => vo
           color: 'var(--c-textMuted)',
         }}
       >
-        New drivers start as <strong>inactive</strong>. Documents must be uploaded before
-        they can be approved to take trips.
+        New drivers start as <strong>inactive</strong>. Approve them from the
+        Drivers list once their documents are uploaded.
       </p>
     </Modal>
   );
+}
+
+function generateTempPassword(length = 10): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+function friendlyError(msg: string): string {
+  const lower = msg.toLowerCase();
+  if (lower.includes('unauthenticated')) {
+    return 'Sign in as an admin first.';
+  }
+  if (lower.includes('permission-denied')) {
+    return 'Your account does not have admin privileges.';
+  }
+  if (lower.includes('already-exists') || lower.includes('email or phone')) {
+    return 'Email or phone is already in use. Try another.';
+  }
+  if (lower.includes('invalid-argument')) {
+    return 'One or more fields are invalid. Check email + phone + plate format.';
+  }
+  return msg;
 }
