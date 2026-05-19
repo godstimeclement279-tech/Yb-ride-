@@ -2,12 +2,23 @@ import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { initializeFirestore, type Firestore } from 'firebase/firestore';
 import { getDatabase, type Database } from 'firebase/database';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import {
+  initializeAuth,
+  getAuth,
+  // @ts-expect-error getReactNativePersistence ships in firebase/auth but
+  // is not in the public TS declarations yet — bug tracked upstream.
+  getReactNativePersistence,
+  type Auth,
+} from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { FIREBASE_CONFIG, FIREBASE_CONFIGURED } from './config';
 
 let _app: FirebaseApp | null = null;
 let _db: Firestore | null = null;
 let _rtdb: Database | null = null;
 let _storage: FirebaseStorage | null = null;
+let _auth: Auth | null = null;
 
 function init(): void {
   if (_app || !FIREBASE_CONFIGURED) return;
@@ -16,6 +27,14 @@ function init(): void {
   _db = initializeFirestore(_app, { experimentalForceLongPolling: true });
   _rtdb = getDatabase(_app);
   _storage = getStorage(_app);
+
+  if (Platform.OS === 'web') {
+    _auth = getAuth(_app);
+  } else {
+    _auth = initializeAuth(_app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  }
 }
 
 export function getApp(): FirebaseApp | null {
@@ -33,6 +52,10 @@ export function getRtdb(): Database | null {
 export function getFbStorage(): FirebaseStorage | null {
   init();
   return _storage;
+}
+export function getFbAuth(): Auth | null {
+  init();
+  return _auth;
 }
 
 export { FIREBASE_CONFIGURED };

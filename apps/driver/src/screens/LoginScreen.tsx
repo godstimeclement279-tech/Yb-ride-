@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
-import { useAuth, DEMO_LOGIN } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { TextInput } from '../components/TextInput';
@@ -16,16 +16,11 @@ import { Card } from '../components/Card';
 export function LoginScreen() {
   const { colors, spacing } = useTheme();
   const { signIn, loading, error } = useAuth();
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const onSubmit = async () => {
-    await signIn(phone, password);
-  };
-
-  const fillDemo = () => {
-    setPhone(DEMO_LOGIN.phone);
-    setPassword(DEMO_LOGIN.password);
+    await signIn(email, password);
   };
 
   return (
@@ -52,35 +47,42 @@ export function LoginScreen() {
               <Text style={{ color: colors.textInverse, fontSize: 30, fontWeight: '700' }}>YB</Text>
             </View>
             <Text variant="h1" style={{ marginTop: spacing.sm }}>YB Ride Driver</Text>
-            <Text variant="small" color="muted">
-              Sign in with the credentials your admin gave you.
+            <Text variant="small" color="muted" style={{ textAlign: 'center' }}>
+              Sign in with the email + password an admin set up for you.
             </Text>
           </View>
 
           <Card>
             <View style={{ gap: spacing.md }}>
               <TextInput
-                label="Phone number"
-                placeholder="+234 801 234 5678"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
+                label="Email"
+                placeholder="you@ybride.ng"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
               />
               <TextInput
                 label="Password"
-                placeholder="Enter password"
+                placeholder="••••••••"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
                 autoCapitalize="none"
+                textContentType="password"
               />
               {error && (
                 <Text variant="small" color="error">{error}</Text>
               )}
-              <Button label="Sign in" onPress={onSubmit} loading={loading} size="lg" />
-              <Button label="Use demo credentials" onPress={fillDemo} variant="ghost" />
+              <Button
+                label="Sign in"
+                onPress={onSubmit}
+                loading={loading}
+                disabled={loading || !email || !password}
+                size="lg"
+              />
             </View>
           </Card>
 

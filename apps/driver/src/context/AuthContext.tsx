@@ -7,110 +7,135 @@ import React, {
   useState,
   type PropsWithChildren,
 } from 'react';
+import { onAuthStateChanged, type User as FbUser } from 'firebase/auth';
 import type { Driver } from '@yb/shared';
-import { MOCK_DRIVER } from '../data/mockData';
-import { FIREBASE_CONFIGURED } from '../services/firebase/index';
-import { findDriverByPhone, subscribeDriver } from '../services/firebase/driversService';
+import { FIREBASE_CONFIGURED, getFbAuth } from '../services/firebase/index';
+import {
+  fetchDriverProfile,
+  mapAuthError,
+  signInDriver,
+  signOutDriver,
+} from '../services/firebase/driverAuthService';
+import { subscribeDriver } from '../services/firebase/driversService';
 import {
   registerForPushNotifications,
   unregisterPushNotifications,
 } from '../services/notifications';
 
-// ─── Auth model (MVP) ──────────────────────────────────────────────────────
-// Drivers do NOT self-register. Admin creates the account in the admin
-// dashboard with `phone` + `password`. Driver logs in here with those creds.
-// Pre-Auth MVP: phone-lookup against Firestore + a hardcoded shared password.
-// Real Firebase Auth (phone OTP) lands in a follow-up pass.
-
-const DEMO_PASSWORD = 'driver123';
-const DEMO_FALLBACK_PHONE = '+2348012345678';
+// ─── Auth model ────────────────────────────────────────────────────────────
+// Drivers DO NOT self-register. Admin creates the Firebase Auth user + the
+// /drivers/{uid} doc via the createStaffAccount Cloud Function (role='driver').
+// This context just signs the driver in and keeps the profile fresh so admin
+// can revoke access in real time by flipping isActive.
 
 interface AuthContextValue {
   user: Driver | null;
   isAuthed: boolean;
   loading: boolean;
   error: string | null;
-  signIn: (phone: string, password: string) => Promise<boolean>;
-  signOut: () => void;
+  signIn: (email: string, password: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<Driver | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(FIREBASE_CONFIGURED);
   const [error, setError] = useState<string | null>(null);
 
-  // Once authed, keep the driver record fresh (admin may toggle isActive remotely).
+  // ── Watch Firebase Auth + driver doc ────────────────────────────────────
   useEffect(() => {
-    if (!user || !FIREBASE_CONFIGURED) return;
-    const unsub = subscribeDriver(user.id, fresh => {
-      if (!fresh) {
-        // Driver doc deleted by admin → force sign-out.
+    if (!FIREBASE_CONFIGURED) {
+      setLoading(false);
+      return;
+    }
+    const auth = getFbAuth()!;
+    let unsubDoc: (() => void) | undefined;
+
+    const unsubAuth = onAuthStateChanged(auth, async (fbUser: FbUser | null) => {
+      unsubDoc?.();
+      unsubDoc = undefined;
+
+      if (!fbUser) {
         setUser(null);
-        setError('Your account is no longer active.');
+        setLoading(false);
         return;
       }
-      setUser(fresh);
-    });
-    return unsub;
-  }, [user?.id]);
 
-  const signIn = useCallback(async (phone: string, password: string) => {
-    setLoading(true);
-    setError(null);
-
-    if (password !== DEMO_PASSWORD) {
-      setError('Invalid phone or password');
-      setLoading(false);
-      return false;
-    }
-
-    // Try Firestore lookup first; fall back to MOCK_DRIVER if disabled / offline.
-    let driver: Driver | null = null;
-    if (FIREBASE_CONFIGURED) {
-      try {
-        driver = await findDriverByPhone(phone);
-      } catch (err) {
-        if (__DEV__) console.warn('findDriverByPhone error', err);
-      }
-    }
-    if (!driver) {
-      const fallbackOk = phone.trim() === DEMO_FALLBACK_PHONE;
-      if (!fallbackOk) {
-        setError(
-          FIREBASE_CONFIGURED
-            ? 'No driver account found for that phone. Ask admin to add you.'
-            : 'Invalid phone or password',
-        );
+      const driver = await fetchDriverProfile(fbUser.uid);
+      if (!driver) {
+        await signOutDriver().catch(() => {});
+        setUser(null);
+        setError('No driver account is linked to this email. Ask admin to add you.');
         setLoading(false);
-        return false;
+        return;
       }
-      driver = MOCK_DRIVER;
-    }
+      if (!driver.isActive) {
+        await signOutDriver().catch(() => {});
+        setUser(null);
+        setError('Your account is not yet approved by admin.');
+        setLoading(false);
+        return;
+      }
 
-    if (!driver.isActive) {
-      setError('Account not yet approved by admin');
+      setUser(driver);
       setLoading(false);
-      return false;
-    }
-    setUser(driver);
-    setLoading(false);
-    // Fire-and-forget — push registration shouldn't block sign-in.
-    registerForPushNotifications(driver.id).catch((err) => {
-      if (__DEV__) console.warn('driver registerForPushNotifications failed', err);
+      setError(null);
+
+      // Fire-and-forget — push registration shouldn't block sign-in.
+      registerForPushNotifications(driver.id).catch((err) => {
+        if (__DEV__) console.warn('driver registerForPushNotifications failed', err);
+      });
+
+      // Track admin flips to isActive / approval / suspension in real time.
+      unsubDoc = subscribeDriver(driver.id, (fresh) => {
+        if (!fresh) {
+          signOutDriver().catch(() => {});
+          setUser(null);
+          setError('Your account was removed by admin.');
+          return;
+        }
+        if (!fresh.isActive) {
+          signOutDriver().catch(() => {});
+          setUser(null);
+          setError('Your account was suspended by admin.');
+          return;
+        }
+        setUser(fresh);
+      });
     });
-    return true;
+
+    return () => {
+      unsubAuth();
+      unsubDoc?.();
+    };
   }, []);
 
-  const signOut = useCallback(() => {
-    const previousId = user?.id;
-    setUser(null);
+  const signIn = useCallback(async (email: string, password: string) => {
+    setLoading(true);
     setError(null);
-    if (previousId) {
-      unregisterPushNotifications(previousId).catch((err) => {
-        if (__DEV__) console.warn('driver unregisterPushNotifications failed', err);
-      });
+    try {
+      await signInDriver(email, password);
+      // onAuthStateChanged above takes over and sets loading=false after the
+      // profile resolves.
+      return true;
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      setError(mapAuthError(code));
+      setLoading(false);
+      return false;
+    }
+  }, []);
+
+  const signOut = useCallback(async () => {
+    const previousId = user?.id;
+    try {
+      await signOutDriver();
+    } finally {
+      if (previousId) {
+        unregisterPushNotifications(previousId).catch(() => {});
+      }
     }
   }, [user?.id]);
 
@@ -134,8 +159,3 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   return ctx;
 }
-
-export const DEMO_LOGIN = {
-  phone: DEMO_FALLBACK_PHONE,
-  password: DEMO_PASSWORD,
-};

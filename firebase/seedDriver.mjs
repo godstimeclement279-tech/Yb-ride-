@@ -1,7 +1,11 @@
-// One-shot driver seeder for end-to-end testing.
-// Creates a test driver doc so the driver app can log in via phone lookup.
-// Run from yb-ride/firebase/:
-//   node seedDriver.mjs
+// Legacy seeder — kept only to repopulate the test-driver-123 Firestore
+// doc that older mock paths reference. The real driver onboarding flow now
+// runs through admin-web's "Add driver" callable (createStaffAccount with
+// role='driver'), which provisions the Firebase Auth user AND the
+// /drivers/{authUid} doc together. The doc this script writes uses the
+// legacy 'test-driver-123' id, which does NOT match any real Auth uid, so
+// you cannot log into the driver app with it — use the admin dashboard
+// instead. Run from yb-ride/firebase/ as `node seedDriver.mjs`.
 import { initializeApp } from 'firebase/app';
 import { doc, getFirestore, setDoc } from 'firebase/firestore';
 
@@ -49,11 +53,11 @@ async function seed() {
   console.log(`> Writing drivers/${TEST_DRIVER.id} ...`);
   const { id, ...data } = TEST_DRIVER;
   await setDoc(doc(db, 'drivers', id), data, { merge: true });
-  console.log('✔ Driver seeded.');
+  console.log('✔ Test driver doc written.');
   console.log('');
-  console.log('Driver app login credentials:');
-  console.log(`  phone:    ${TEST_DRIVER.phone}`);
-  console.log(`  password: driver123  (hardcoded in driver app for MVP)`);
+  console.log('Note: this doc cannot be used to sign in to the driver app —');
+  console.log('the app now uses Firebase Auth. Onboard a real driver via');
+  console.log('admin-web ("Add driver") so Auth + Firestore stay in sync.');
   process.exit(0);
 }
 
