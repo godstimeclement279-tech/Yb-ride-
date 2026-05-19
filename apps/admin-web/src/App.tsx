@@ -1,11 +1,13 @@
 import { Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { PrivateRoute } from './components/PrivateRoute';
 import { Bookings } from './pages/Bookings';
 import { BookingDetail } from './pages/BookingDetail';
 import { CarTypes } from './pages/CarTypes';
 import { Dashboard } from './pages/Dashboard';
 import { DriverDetail } from './pages/DriverDetail';
 import { Drivers } from './pages/Drivers';
+import { Login } from './pages/Login';
 import { PassengerDetail } from './pages/PassengerDetail';
 import { Passengers } from './pages/Passengers';
 import { Promos } from './pages/Promos';
@@ -18,7 +20,14 @@ import { EmptyState } from './components/ui';
 export function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <PrivateRoute>
+            <Layout />
+          </PrivateRoute>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="bookings" element={<Bookings />} />
         <Route path="bookings/:id" element={<BookingDetail />} />
