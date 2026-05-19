@@ -11,6 +11,7 @@ import {
 } from '../components/ui';
 import { BookingStatusPill, DriverStatusPill } from '../components/status';
 import { useAllBookings, useAllDrivers } from '../hooks/useLiveData';
+import { useNewBookingAlert } from '../hooks/useNewBookingAlert';
 import { useAuth } from '../context/AuthContext';
 import { formatNaira, formatRelative } from '../utils/format';
 import type { Booking } from '@yb/shared';
@@ -19,6 +20,7 @@ export function Dashboard() {
   const { staff } = useAuth();
   const bookings = useAllBookings();
   const drivers = useAllDrivers();
+  useNewBookingAlert(bookings);
 
   const stats = useMemo(() => {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;

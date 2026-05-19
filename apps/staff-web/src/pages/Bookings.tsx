@@ -13,6 +13,7 @@ import {
 } from '../components/ui';
 import { BookingStatusPill } from '../components/status';
 import { useAllBookings, useAllDrivers } from '../hooks/useLiveData';
+import { useNewBookingAlert } from '../hooks/useNewBookingAlert';
 import { formatNaira, formatRelative } from '../utils/format';
 import type { Booking, BookingStatus, Driver } from '@yb/shared';
 
@@ -42,6 +43,9 @@ export function Bookings() {
   const navigate = useNavigate();
   const bookings = useAllBookings();
   const drivers = useAllDrivers();
+
+  // Loud alert whenever a fresh paid booking lands in the queue.
+  useNewBookingAlert(bookings);
 
   const [filter, setFilter] = useState<StatusFilter>('open');
   const [query, setQuery] = useState('');

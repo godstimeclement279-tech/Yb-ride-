@@ -70,6 +70,15 @@ module.exports = () => ({
           isIosBackgroundLocationEnabled: true,
         },
       ],
+      [
+        'expo-notifications',
+        {
+          color: '#1E3A8A',
+          // Drop a louder WAV at ./assets/sounds/urgent.wav for the
+          // "new trip offer" channel, then add 'urgent.wav' here.
+          sounds: [],
+        },
+      ],
     ],
     extra: {
       eas: {

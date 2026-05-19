@@ -42,6 +42,15 @@ module.exports = () => ({
           RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOAD_TOKEN,
         },
       ],
+      [
+        'expo-notifications',
+        {
+          color: '#1E3A8A',
+          // Drop a custom WAV under ./assets/sounds and add it to `sounds: []`
+          // below to override the default Android channel sound.
+          sounds: [],
+        },
+      ],
     ],
     extra: {
       eas: {

@@ -11,6 +11,10 @@ import type { Driver } from '@yb/shared';
 import { MOCK_DRIVER } from '../data/mockData';
 import { FIREBASE_CONFIGURED } from '../services/firebase/index';
 import { findDriverByPhone, subscribeDriver } from '../services/firebase/driversService';
+import {
+  registerForPushNotifications,
+  unregisterPushNotifications,
+} from '../services/notifications';
 
 // ─── Auth model (MVP) ──────────────────────────────────────────────────────
 // Drivers do NOT self-register. Admin creates the account in the admin
@@ -92,13 +96,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
     setUser(driver);
     setLoading(false);
+    // Fire-and-forget — push registration shouldn't block sign-in.
+    registerForPushNotifications(driver.id).catch((err) => {
+      if (__DEV__) console.warn('driver registerForPushNotifications failed', err);
+    });
     return true;
   }, []);
 
   const signOut = useCallback(() => {
+    const previousId = user?.id;
     setUser(null);
     setError(null);
-  }, []);
+    if (previousId) {
+      unregisterPushNotifications(previousId).catch((err) => {
+        if (__DEV__) console.warn('driver unregisterPushNotifications failed', err);
+      });
+    }
+  }, [user?.id]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

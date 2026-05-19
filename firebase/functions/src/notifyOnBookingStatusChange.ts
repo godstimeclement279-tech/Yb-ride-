@@ -9,12 +9,14 @@ import { logger } from 'firebase-functions';
 // transition that the passenger or driver should hear about, we push an
 // FCM notification to their device(s) via fcmTokens stored on the user doc.
 //
-// Token storage convention (set when the apps register for push in Wave 6):
-//   /passengers/{id}.fcmTokens: string[]
-//   /drivers/{id}.fcmTokens:    string[]
+// Token storage convention (set when the apps register for push):
+//   /users/{id}.fcmTokens:   string[]   (passenger devices)
+//   /drivers/{id}.fcmTokens: string[]   (driver devices)
 //
-// Wave 6 will wire token registration into the passenger + driver apps. For
-// now this function is harmless — if no tokens are present we just no-op.
+// Sound / channel routing:
+//   - Driver "new assignment" alerts get the urgent channel + loud sound so
+//     drivers wake up to incoming offers even when their phone is muted.
+//   - All other transitions use the default channel + default sound.
 
 interface Booking {
   status?: string;
@@ -32,49 +34,124 @@ async function tokensFor(collection: string, id?: string): Promise<string[]> {
   return raw.filter((t): t is string => typeof t === 'string' && t.length > 0);
 }
 
-interface NotificationSpec {
+interface NotificationPlan {
   title: string;
   body: string;
+  // 'urgent' channel for driver alerts that must cut through DND.
+  channel: 'default' | 'urgent';
   audience: 'passenger' | 'driver' | 'both';
 }
 
-function specForTransition(prev: string, next: string): NotificationSpec | null {
+function planForTransition(
+  prev: string,
+  next: string,
+): { driver?: NotificationPlan; passenger?: NotificationPlan } | null {
   if (prev === 'paid' && next === 'assigned') {
     return {
-      title: 'Driver assigned',
-      body: 'A driver has been assigned to your trip. Tracking is live.',
-      audience: 'both',
+      driver: {
+        title: 'New trip — please respond',
+        body: 'A passenger needs you. Tap to accept or decline within 30 seconds.',
+        channel: 'urgent',
+        audience: 'driver',
+      },
+      passenger: {
+        title: 'Driver assigned',
+        body: 'A driver has accepted your trip. Live tracking is now on.',
+        channel: 'default',
+        audience: 'passenger',
+      },
     };
   }
   if (prev === 'assigned' && next === 'driver_arrived') {
     return {
-      title: 'Your driver has arrived',
-      body: 'Look for your driver at the pickup point.',
-      audience: 'passenger',
+      passenger: {
+        title: 'Your driver has arrived',
+        body: 'Look for your driver at the pickup point.',
+        channel: 'default',
+        audience: 'passenger',
+      },
     };
   }
   if (prev === 'driver_arrived' && next === 'in_progress') {
     return {
-      title: 'Trip started',
-      body: 'Enjoy your ride.',
-      audience: 'passenger',
+      passenger: {
+        title: 'Trip started',
+        body: 'Enjoy your ride.',
+        channel: 'default',
+        audience: 'passenger',
+      },
     };
   }
   if (next === 'completed') {
     return {
-      title: 'Trip completed',
-      body: 'Thanks for riding with YB Ride. Tap to rate your driver.',
-      audience: 'passenger',
+      passenger: {
+        title: 'Trip completed',
+        body: 'Thanks for riding with YB Ride. Tap to rate your driver.',
+        channel: 'default',
+        audience: 'passenger',
+      },
     };
   }
   if (next === 'cancelled') {
     return {
-      title: 'Trip cancelled',
-      body: 'Your trip was cancelled. You can book another any time.',
-      audience: 'both',
+      driver: {
+        title: 'Trip cancelled',
+        body: 'This trip has been cancelled.',
+        channel: 'default',
+        audience: 'driver',
+      },
+      passenger: {
+        title: 'Trip cancelled',
+        body: 'Your trip was cancelled. You can book another any time.',
+        channel: 'default',
+        audience: 'passenger',
+      },
     };
   }
   return null;
+}
+
+async function sendToTokens(
+  tokens: string[],
+  plan: NotificationPlan,
+  bookingId: string,
+  status: string,
+): Promise<{ ok: number; fail: number }> {
+  if (tokens.length === 0) return { ok: 0, fail: 0 };
+  const isUrgent = plan.channel === 'urgent';
+  const message: MulticastMessage = {
+    tokens,
+    notification: { title: plan.title, body: plan.body },
+    data: { bookingId, status },
+    android: {
+      priority: isUrgent ? 'high' : 'normal',
+      notification: {
+        channelId: plan.channel,
+        sound: 'default',
+        defaultVibrateTimings: !isUrgent,
+        vibrateTimingsMillis: isUrgent ? [0, 800, 400, 800, 400, 800] : undefined,
+        priority: isUrgent ? 'max' : 'default',
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default',
+          // iOS time-sensitive interruption matches the spirit of an urgent
+          // alert without requiring the Critical Alert entitlement (which
+          // needs an Apple Developer support request to enable).
+          'interruption-level': isUrgent ? 'time-sensitive' : 'active',
+        },
+      },
+    },
+  };
+  try {
+    const result = await getMessaging().sendEachForMulticast(message);
+    return { ok: result.successCount, fail: result.failureCount };
+  } catch (err) {
+    logger.error('sendToTokens failed', err);
+    return { ok: 0, fail: tokens.length };
+  }
 }
 
 export const notifyOnBookingStatusChange = onDocumentUpdated(
@@ -88,41 +165,32 @@ export const notifyOnBookingStatusChange = onDocumentUpdated(
     if (!before || !after) return;
     if (before.status === after.status) return;
 
-    const spec = specForTransition(before.status ?? '', after.status ?? '');
-    if (!spec) return;
+    const plan = planForTransition(before.status ?? '', after.status ?? '');
+    if (!plan) return;
 
-    const targets: string[] = [];
-    if (spec.audience === 'passenger' || spec.audience === 'both') {
-      targets.push(...(await tokensFor('passengers', after.passengerId)));
-    }
-    if (spec.audience === 'driver' || spec.audience === 'both') {
-      targets.push(...(await tokensFor('drivers', after.driverId)));
-    }
-    if (targets.length === 0) {
-      logger.info('notifyOnBookingStatusChange: no tokens', {
-        bookingId: event.params.bookingId,
+    const bookingId = event.params.bookingId;
+    const status = after.status ?? '';
+
+    // Driver leg.
+    if (plan.driver) {
+      const tokens = await tokensFor('drivers', after.driverId);
+      const r = await sendToTokens(tokens, plan.driver, bookingId, status);
+      logger.info('notifyOnBookingStatusChange driver', {
+        bookingId,
         transition: `${before.status}->${after.status}`,
+        ...r,
       });
-      return;
     }
 
-    const message: MulticastMessage = {
-      tokens: targets,
-      notification: { title: spec.title, body: spec.body },
-      data: {
-        bookingId: event.params.bookingId,
-        status: after.status ?? '',
-      },
-    };
-
-    try {
-      const result = await getMessaging().sendEachForMulticast(message);
-      logger.info('notifyOnBookingStatusChange sent', {
-        success: result.successCount,
-        failure: result.failureCount,
+    // Passenger leg.
+    if (plan.passenger) {
+      const tokens = await tokensFor('users', after.passengerId);
+      const r = await sendToTokens(tokens, plan.passenger, bookingId, status);
+      logger.info('notifyOnBookingStatusChange passenger', {
+        bookingId,
+        transition: `${before.status}->${after.status}`,
+        ...r,
       });
-    } catch (err) {
-      logger.error('notifyOnBookingStatusChange send error', err);
     }
   },
 );

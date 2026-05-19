@@ -1,10 +1,12 @@
 import React, {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   type PropsWithChildren,
 } from 'react';
 import { TEST_USERS, type Passenger } from '@yb/shared';
+import { registerForPushNotifications } from '../services/notifications';
 
 // MVP: hardcoded test passenger. Real Firebase Auth ships in the post-MVP pass.
 const TEST_PASSENGER: Passenger = {
@@ -27,6 +29,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const value = useMemo<AuthContextValue>(() => ({ user: TEST_PASSENGER }), []);
+
+  // Register for push notifications once we know who the user is. Runs in
+  // the background and is idempotent — re-runs on every app launch.
+  useEffect(() => {
+    registerForPushNotifications(value.user.id).catch((err) => {
+      if (__DEV__) console.warn('passenger registerForPushNotifications failed', err);
+    });
+  }, [value.user.id]);
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
