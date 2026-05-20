@@ -1,13 +1,17 @@
-// YB Ride brand palette — premium minimal aesthetic.
+// YB Ride brand palette — yellow + white identity.
+//
 // Brand spec:
-//   Primary CTA / brand: Deep Blue #1E3A8A
-//   Accent / rating:     Gold      #FACC15
-//   Pickup pin:          Green     #10B981
-//   Dropoff pin:         Rose      #F43F5E
-//   Status success:      Green     #10B981
-//   Error:               Red       #EF4444
-// Visual language: bone-white canvas, soft gray surfaces, sharp typography,
-// minimal shadows, brand-blue CTAs. Modeled after modern ride-hailing UIs.
+//   Primary (CTA + brand) :  Yellow      #FACC15
+//   Primary dim          :  Deeper yellow #EAB308
+//   Primary soft tint    :  Pale yellow   #FEF9C3
+//   Accent (rating, badge):  Same yellow as primary
+//   Pickup pin           :  Green       #10B981
+//   Dropoff pin          :  Rose        #F43F5E
+//   Status success       :  Green       #10B981
+//   Error                :  Red         #EF4444
+//
+// Visual language: bright white canvas, vibrant yellow primary CTAs with
+// black labels, soft gray surfaces, dark text. Light + dark themes.
 
 export interface ThemePalette {
   // brand
@@ -56,17 +60,19 @@ export interface ThemePalette {
   mapDriverOffline: string;
 }
 
+// Light: white canvas, yellow CTA, black text on yellow buttons.
 export const lightPalette: ThemePalette = {
-  primary: '#1E3A8A',
-  primaryDim: '#3151B0',
-  primarySoft: '#E8EEFF',
+  primary: '#FACC15',
+  primaryDim: '#EAB308',
+  primarySoft: '#FEF9C3',
   accent: '#FACC15',
   accentSoft: '#FEF9C3',
 
   text: '#0A0A0A',
   textMuted: '#6B7280',
   textSubtle: '#9CA3AF',
-  textInverse: '#FFFFFF',
+  // Buttons read textInverse for their label. Yellow primary needs black.
+  textInverse: '#0A0A0A',
 
   background: '#FFFFFF',
   surface: '#F5F5F7',
@@ -91,46 +97,46 @@ export const lightPalette: ThemePalette = {
   overlay: 'rgba(0, 0, 0, 0.45)',
 
   mapDriverOnline: '#10B981',
-  mapDriverOnTrip: '#1E3A8A',
+  mapDriverOnTrip: '#FACC15',
   mapDriverOffline: '#9CA3AF',
 };
 
-// YB Brand dark mode: navy canvas, yellow CTA, white text.
+// Dark: near-black canvas, same yellow CTA, white body text.
 export const darkPalette: ThemePalette = {
-  primary: '#FDE047',
-  primaryDim: '#FACC15',
-  primarySoft: '#3D52A8',
+  primary: '#FACC15',
+  primaryDim: '#FDE047',
+  primarySoft: '#3F2E0A',
   accent: '#FDE047',
-  accentSoft: '#2A3F88',
+  accentSoft: '#3F2E0A',
 
-  text: '#FFFFFF',
-  textMuted: '#C7D2E8',
-  textSubtle: '#93A5C7',
-  textInverse: '#1E3A8A',
+  text: '#F5F5F7',
+  textMuted: '#9CA3AF',
+  textSubtle: '#6B7280',
+  textInverse: '#0A0A0A',
 
-  background: '#1E3A8A',
-  surface: '#2A4AA0',
-  surfaceMuted: '#1A3478',
-  card: '#34529F',
+  background: '#0B0B0F',
+  surface: '#16161B',
+  surfaceMuted: '#101015',
+  card: '#1A1A20',
 
-  border: '#3E5BAD',
-  borderStrong: '#FDE047',
-  divider: '#2A4AA0',
+  border: '#26262E',
+  borderStrong: '#F5F5F7',
+  divider: '#1F1F26',
 
   success: '#34D399',
-  successSoft: '#1E4F3C',
-  error: '#FCA5A5',
-  errorSoft: '#7F1D1D',
+  successSoft: '#0F3D2E',
+  error: '#F87171',
+  errorSoft: '#3D1A1A',
   warning: '#FDE047',
-  info: '#93C5FD',
+  info: '#60A5FA',
 
   pickup: '#34D399',
   dropoff: '#FB7185',
 
-  shadow: 'rgba(0, 0, 0, 0.45)',
-  overlay: 'rgba(15, 23, 70, 0.7)',
+  shadow: 'rgba(0, 0, 0, 0.55)',
+  overlay: 'rgba(0, 0, 0, 0.65)',
 
   mapDriverOnline: '#34D399',
-  mapDriverOnTrip: '#FB923C',
-  mapDriverOffline: '#93A5C7',
+  mapDriverOnTrip: '#FDE047',
+  mapDriverOffline: '#6B7280',
 };

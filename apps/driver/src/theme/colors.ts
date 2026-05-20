@@ -38,21 +38,23 @@ export interface ThemePalette {
   mapDriverOffline: string;
 }
 
+// Light: white canvas, vibrant yellow CTA, black labels on yellow buttons.
 export const lightPalette: ThemePalette = {
-  primary: '#1E3A8A',
-  primaryDim: '#3151B0',
+  primary: '#FACC15',
+  primaryDim: '#EAB308',
   accent: '#FACC15',
 
-  text: '#1F2937',
+  text: '#0A0A0A',
   textMuted: '#6B7280',
-  textInverse: '#FFFFFF',
+  // Buttons read textInverse for their label — yellow primary needs black.
+  textInverse: '#0A0A0A',
 
   background: '#FFFFFF',
-  surface: '#F9FAFB',
+  surface: '#F5F5F7',
   card: '#FFFFFF',
 
-  border: '#E5E7EB',
-  divider: '#F3F4F6',
+  border: '#E8E8EC',
+  divider: '#EFEFF1',
 
   success: '#10B981',
   error: '#EF4444',
@@ -62,30 +64,30 @@ export const lightPalette: ThemePalette = {
   pickup: '#10B981',
   dropoff: '#F43F5E',
 
-  shadow: 'rgba(0, 0, 0, 0.10)',
-  overlay: 'rgba(0, 0, 0, 0.35)',
+  shadow: 'rgba(0, 0, 0, 0.06)',
+  overlay: 'rgba(0, 0, 0, 0.45)',
 
   mapDriverOnline: '#10B981',
-  mapDriverOnTrip: '#1E3A8A',
+  mapDriverOnTrip: '#FACC15',
   mapDriverOffline: '#9CA3AF',
 };
 
-// YB Brand dark mode: navy canvas, yellow CTA, white text.
+// Dark: near-black canvas, same yellow CTA, white body text.
 export const darkPalette: ThemePalette = {
-  primary: '#FDE047',
-  primaryDim: '#FACC15',
+  primary: '#FACC15',
+  primaryDim: '#FDE047',
   accent: '#FDE047',
 
-  text: '#FFFFFF',
-  textMuted: '#C7D2E8',
-  textInverse: '#1E3A8A',
+  text: '#F5F5F7',
+  textMuted: '#9CA3AF',
+  textInverse: '#0A0A0A',
 
-  background: '#1E3A8A',
-  surface: '#2A4AA0',
-  card: '#34529F',
+  background: '#0B0B0F',
+  surface: '#16161B',
+  card: '#1A1A20',
 
-  border: '#3E5BAD',
-  divider: '#2A4AA0',
+  border: '#26262E',
+  divider: '#1F1F26',
 
   success: '#34D399',
   error: '#FCA5A5',
@@ -95,10 +97,10 @@ export const darkPalette: ThemePalette = {
   pickup: '#34D399',
   dropoff: '#FB7185',
 
-  shadow: 'rgba(0, 0, 0, 0.40)',
-  overlay: 'rgba(15, 23, 70, 0.7)',
+  shadow: 'rgba(0, 0, 0, 0.55)',
+  overlay: 'rgba(0, 0, 0, 0.65)',
 
   mapDriverOnline: '#34D399',
-  mapDriverOnTrip: '#FB923C',
-  mapDriverOffline: '#93A5C7',
+  mapDriverOnTrip: '#FDE047',
+  mapDriverOffline: '#6B7280',
 };

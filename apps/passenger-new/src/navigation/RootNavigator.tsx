@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
+import { isOnboardingComplete } from '../services/onboardingFlag';
 import { MainTabs } from './MainTabs';
 import type { AuthStackParamList, RootStackParamList } from './types';
 
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
 import { LocationSearchScreen } from '../screens/LocationSearchScreen';
@@ -34,6 +36,13 @@ export function RootNavigator() {
   const theme = useTheme();
   const { status } = useAuth();
 
+  // Resolve the onboarding flag once on mount. Until it lands we keep the
+  // spinner up — same UX as a still-loading auth session.
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  useEffect(() => {
+    isOnboardingComplete().then(setOnboardingDone);
+  }, []);
+
   const navTheme =
     theme.mode === 'dark'
       ? {
@@ -59,10 +68,11 @@ export function RootNavigator() {
           },
         };
 
-  // While the persisted Firebase Auth session resolves on first render show
-  // a centered spinner — keeps us from flashing the Login screen to a user
-  // who is actually signed in.
-  if (status === 'loading') {
+  // While the persisted Firebase Auth session AND the onboarding flag are
+  // still resolving on first render, show a centered spinner — keeps us
+  // from flashing Login to an already-signed-in user, or skipping Onboarding
+  // for a first-launch user.
+  if (status === 'loading' || onboardingDone === null) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator color={theme.colors.primary} />
@@ -112,11 +122,13 @@ export function RootNavigator() {
         </RootStack.Navigator>
       ) : (
         <AuthStack.Navigator
+          initialRouteName={onboardingDone ? 'Login' : 'Onboarding'}
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: theme.colors.background },
           }}
         >
+          <AuthStack.Screen name="Onboarding" component={OnboardingScreen} />
           <AuthStack.Screen name="Login" component={LoginScreen} />
           <AuthStack.Screen name="Signup" component={SignupScreen} />
         </AuthStack.Navigator>
