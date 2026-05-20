@@ -1,5 +1,5 @@
-// YB Ride brand palette — mirrors apps/driver/src/theme/colors.ts so visuals match.
-// Primary Deep Blue #1E3A8A, Accent Gold #FACC15.
+// YB Ride brand palette — yellow + white identity, mirrors the mobile apps.
+// Primary Yellow #FACC15, dim #EAB308. Button labels read textInverse (black).
 
 export interface ThemePalette {
   primary: string;
@@ -27,20 +27,20 @@ export interface ThemePalette {
 }
 
 export const lightPalette: ThemePalette = {
-  primary: '#1E3A8A',
-  primaryDim: '#3151B0',
+  primary: '#FACC15',
+  primaryDim: '#EAB308',
   accent: '#FACC15',
 
-  text: '#1F2937',
+  text: '#0A0A0A',
   textMuted: '#6B7280',
-  textInverse: '#FFFFFF',
+  textInverse: '#0A0A0A',
 
-  background: '#F9FAFB',
-  surface: '#FFFFFF',
+  background: '#FFFFFF',
+  surface: '#F5F5F7',
   card: '#FFFFFF',
 
-  border: '#E5E7EB',
-  divider: '#F3F4F6',
+  border: '#E8E8EC',
+  divider: '#EFEFF1',
 
   success: '#10B981',
   error: '#EF4444',
@@ -48,30 +48,30 @@ export const lightPalette: ThemePalette = {
   info: '#3B82F6',
 
   shadow: 'rgba(0, 0, 0, 0.06)',
-  overlay: 'rgba(0, 0, 0, 0.35)',
+  overlay: 'rgba(0, 0, 0, 0.45)',
 };
 
 export const darkPalette: ThemePalette = {
-  primary: '#3B5BCA',
-  primaryDim: '#1E3A8A',
+  primary: '#FACC15',
+  primaryDim: '#FDE047',
   accent: '#FDE047',
 
-  text: '#F9FAFB',
+  text: '#F5F5F7',
   textMuted: '#9CA3AF',
-  textInverse: '#0B1020',
+  textInverse: '#0A0A0A',
 
-  background: '#0B1020',
-  surface: '#111827',
-  card: '#1F2937',
+  background: '#0B0B0F',
+  surface: '#16161B',
+  card: '#1A1A20',
 
-  border: '#374151',
-  divider: '#1F2937',
+  border: '#26262E',
+  divider: '#1F1F26',
 
   success: '#34D399',
   error: '#F87171',
   warning: '#FDE047',
   info: '#60A5FA',
 
-  shadow: 'rgba(0, 0, 0, 0.40)',
-  overlay: 'rgba(0, 0, 0, 0.55)',
+  shadow: 'rgba(0, 0, 0, 0.55)',
+  overlay: 'rgba(0, 0, 0, 0.65)',
 };
