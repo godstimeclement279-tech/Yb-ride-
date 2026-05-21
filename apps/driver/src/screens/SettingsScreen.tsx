@@ -1,20 +1,36 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
 import { ListItem } from '../components/ListItem';
 import { Divider } from '../components/Divider';
 import { Pill } from '../components/Pill';
+import { Button } from '../components/Button';
 import { useTheme } from '../theme/ThemeProvider';
+import { useAuth } from '../context/AuthContext';
 
 export function SettingsScreen() {
   const { mode, setMode, spacing } = useTheme();
+  const { signOut } = useAuth();
+
+  const onSignOut = () => {
+    Alert.alert('Sign out?', 'You will go offline and need to sign in again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          signOut().catch(() => {
+            Alert.alert('Could not sign out', 'Try again in a moment.');
+          });
+        },
+      },
+    ]);
+  };
 
   return (
     <Screen scroll>
-      <Text variant="h2">Settings</Text>
-
       <Card padded={false}>
         <View style={{ padding: spacing.base }}>
           <Text variant="bodyStrong">Theme</Text>
@@ -30,14 +46,14 @@ export function SettingsScreen() {
       <Card padded={false}>
         <ListItem
           title="Push notifications"
-          subtitle="Trip assignments and updates"
-          trailing={<Text variant="small" color="muted">Coming soon</Text>}
+          subtitle="Trip assignments + status updates"
+          trailing={<Text variant="small" color="success">Enabled</Text>}
         />
         <Divider inset={spacing.lg} />
         <ListItem
           title="Background location"
-          subtitle="GPS share with dispatch while online"
-          trailing={<Text variant="small" color="muted">Coming soon</Text>}
+          subtitle="GPS shared with dispatch while online"
+          trailing={<Text variant="small" color="success">Enabled</Text>}
         />
       </Card>
 
@@ -48,8 +64,10 @@ export function SettingsScreen() {
         </Text>
       </Card>
 
+      <Button label="Sign out" variant="danger" onPress={onSignOut} />
+
       <View style={{ alignItems: 'center', marginTop: spacing.md }}>
-        <Text variant="caption" color="muted">YB Ride Driver · v0.0.1</Text>
+        <Text variant="caption" color="muted">YB Ride Driver · v0.1.0</Text>
       </View>
     </Screen>
   );

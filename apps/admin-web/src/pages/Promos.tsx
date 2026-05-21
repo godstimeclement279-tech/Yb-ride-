@@ -19,6 +19,7 @@ import {
   subscribePromos,
 } from '../services/firebase/promosService';
 import { FIREBASE_CONFIGURED } from '../services/firebase/index';
+import { useAuth } from '../context/AuthContext';
 
 function promoStatus(p: Promo): { tone: 'success' | 'warning' | 'neutral'; label: string } {
   const now = Date.now();
@@ -179,6 +180,7 @@ function PromoModal({
   promo: Promo | null;
   onClose: () => void;
 }) {
+  const { admin } = useAuth();
   const [code, setCode] = useState(promo?.code ?? '');
   const [kind, setKind] = useState<PromoKind>(promo?.kind ?? 'percentage');
   const [value, setValue] = useState(
@@ -266,7 +268,7 @@ function PromoModal({
         startsAt: startTs,
         expiresAt: endTs,
         isActive,
-        createdBy: promo?.createdBy ?? 'test-admin-123',
+        createdBy: promo?.createdBy ?? admin?.id ?? 'admin',
         createdAt: promo?.createdAt ?? Date.now(),
       });
       onClose();

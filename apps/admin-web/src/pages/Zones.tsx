@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { GeoPoint, Zone } from '@yb/shared';
-import { TEST_USERS } from '@yb/shared';
+import { useAuth } from '../context/AuthContext';
 import {
   Button,
   Card,
@@ -157,6 +157,7 @@ function ZoneModal({
   zone: Zone | null;
   onClose: () => void;
 }) {
+  const { admin } = useAuth();
   const [name, setName] = useState(zone?.name ?? '');
   const [surcharge, setSurcharge] = useState(
     zone ? String(koboToNaira(zone.surcharge)) : '',
@@ -213,7 +214,7 @@ function ZoneModal({
           surcharge: surchargeKobo,
           polygon,
           isActive,
-          createdBy: TEST_USERS.ADMIN,
+          createdBy: admin?.id ?? 'admin',
           createdAt: Date.now(),
         });
       }

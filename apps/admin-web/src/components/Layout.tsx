@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useTheme } from '../theme/ThemeProvider';
+import { useAuth } from '../context/AuthContext';
 
 interface NavItem {
   to: string;
@@ -159,15 +160,25 @@ function FooterCard() {
       }}
     >
       <div style={{ color: 'var(--c-text)', fontWeight: 600, marginBottom: 4 }}>
-        MVP build
+        YB Ride · Admin
       </div>
-      Auth disabled — signed in as <strong>test-admin-123</strong>.
+      v0.1.0
     </div>
   );
 }
 
 function Topbar({ children }: { children?: ReactNode }) {
   const { mode, toggle } = useTheme();
+  const { admin, signOutNow } = useAuth();
+  const initial = (admin?.name ?? 'A').charAt(0).toUpperCase();
+  const onSignOut = async () => {
+    if (!window.confirm('Sign out of the admin dashboard?')) return;
+    try {
+      await signOutNow();
+    } catch (err) {
+      console.warn('signOut failed', err);
+    }
+  };
   return (
     <header
       style={{
@@ -224,14 +235,32 @@ function Topbar({ children }: { children?: ReactNode }) {
               fontSize: 12,
             }}
           >
-            A
+            {initial}
           </div>
-          <div style={{ fontSize: 13 }}>
-            <div style={{ fontWeight: 600 }}>Admin</div>
+          <div style={{ fontSize: 13, lineHeight: 1.2 }}>
+            <div style={{ fontWeight: 600 }}>
+              {admin?.name ?? 'Admin'}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--c-textMuted)' }}>
-              test-admin-123
+              {admin?.email ?? 'admin'}
             </div>
           </div>
+          <button
+            onClick={onSignOut}
+            aria-label="Sign out"
+            style={{
+              marginLeft: 8,
+              background: 'transparent',
+              border: '1px solid var(--c-border)',
+              borderRadius: 8,
+              padding: '6px 10px',
+              color: 'var(--c-text)',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </header>
