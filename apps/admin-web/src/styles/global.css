@@ -83,16 +83,18 @@ p {
 }
 
 a {
-  color: var(--c-primary);
-  text-decoration: none;
+  color: var(--c-text);
+  text-decoration: underline;
+  text-decoration-color: var(--c-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
   font-weight: 500;
-  transition: color 120ms ease;
+  transition: color 120ms ease, text-decoration-color 120ms ease;
 }
 
 a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+  color: var(--c-primaryDim);
+  text-decoration-color: var(--c-primaryDim);
 }
 
 button {
@@ -232,7 +234,7 @@ textarea {
 
 .input:focus {
   border-color: var(--c-primary);
-  box-shadow: 0 0 0 3px rgba(10, 37, 64, 0.1);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.25);
 }
 
 .input::placeholder {
