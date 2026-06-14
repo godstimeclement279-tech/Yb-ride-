@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import type { Booking, CarType, Driver } from '@yb/shared';
+import { COLLECTIONS } from '@yb/shared';
 import {
   Button,
   Card,
@@ -10,12 +14,64 @@ import {
   Table,
 } from '../components/ui';
 import { ApprovalPill, BookingStatusPill, DriverStatusPill } from '../components/status';
-import { mockBookings, mockCarTypes, mockDrivers } from '../data/mock';
+import { FIREBASE_CONFIGURED, getDb } from '../services/firebase';
+import { subscribeCarTypes } from '../services/firebase/carTypesService';
+import { subscribeBookings } from '../services/firebase/bookingsService';
+import { setDriverActive } from '../services/firebase/driversService';
+import { useAuth } from '../context/AuthContext';
 import { formatDateTime, formatNaira, formatRelative } from '../utils/format';
 
 export function DriverDetail() {
   const { id } = useParams<{ id: string }>();
-  const driver = mockDrivers.find((d) => d.id === id);
+  const { admin } = useAuth();
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [carTypes, setCarTypes] = useState<CarType[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id || !FIREBASE_CONFIGURED) {
+      setLoaded(true);
+      return;
+    }
+    const db = getDb()!;
+    return onSnapshot(
+      doc(db, COLLECTIONS.DRIVERS, id),
+      (snap) => {
+        setDriver(snap.exists() ? ({ id: snap.id, ...snap.data() } as Driver) : null);
+        setLoaded(true);
+      },
+      (err) => {
+        console.warn('driver subscribe error', err);
+        setLoaded(true);
+      },
+    );
+  }, [id]);
+
+  useEffect(() => subscribeCarTypes(setCarTypes), []);
+  useEffect(() => subscribeBookings(setBookings), []);
+
+  async function approveOrToggle() {
+    if (!driver || !admin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await setDriverActive(driver.id, !driver.isActive, admin.id);
+    } catch (e: unknown) {
+      const msg = typeof e === 'object' && e && 'message' in e
+        ? String((e as { message: unknown }).message)
+        : 'Could not update driver.';
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!loaded) {
+    return <EmptyState title="Loading driver…" description="" action={null} />;
+  }
 
   if (!driver) {
     return (
@@ -30,12 +86,12 @@ export function DriverDetail() {
     );
   }
 
-  const carType = mockCarTypes.find((c) => c.id === driver.carTypeId);
-  const trips = mockBookings
+  const carType = carTypes.find((c) => c.id === driver.carTypeId);
+  const trips = bookings
     .filter((b) => b.driverId === driver.id)
     .sort((a, b) => b.createdAt - a.createdAt);
 
-  const docs = driver.documents;
+  const docs = driver.documents ?? {};
 
   return (
     <>
@@ -47,16 +103,37 @@ export function DriverDetail() {
             <Link to="/drivers">
               <Button variant="secondary">Back</Button>
             </Link>
-            {!driver.approvedAt ? (
-              <Button>Approve driver</Button>
-            ) : driver.status === 'suspended' ? (
-              <Button>Reinstate</Button>
-            ) : (
-              <Button variant="danger">Suspend</Button>
-            )}
+            <Button
+              variant={driver.isActive ? 'danger' : 'primary'}
+              onClick={approveOrToggle}
+              disabled={busy}
+            >
+              {busy
+                ? 'Working…'
+                : !driver.approvedAt
+                  ? 'Approve driver'
+                  : driver.isActive
+                    ? 'Suspend'
+                    : 'Reinstate'}
+            </Button>
           </>
         }
       />
+
+      {error && (
+        <div
+          style={{
+            margin: '0 0 12px',
+            padding: 10,
+            background: 'var(--c-errorSoft)',
+            color: 'var(--c-error)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       <div
         style={{
@@ -77,7 +154,7 @@ export function DriverDetail() {
               }}
             >
               <DriverStatusPill status={driver.status} />
-              <ApprovalPill approved={!!driver.approvedAt} />
+              <ApprovalPill approved={!!driver.approvedAt && driver.isActive} />
               {!driver.isActive && <Pill tone="error">Inactive</Pill>}
             </div>
             <div
@@ -87,8 +164,8 @@ export function DriverDetail() {
                 gap: 16,
               }}
             >
-              <Stat label="Trips" value={driver.totalTrips.toLocaleString()} />
-              <Stat label="Lifetime earnings" value={formatNaira(driver.totalEarningsKobo)} />
+              <Stat label="Trips" value={(driver.totalTrips ?? 0).toLocaleString()} />
+              <Stat label="Lifetime earnings" value={formatNaira(driver.totalEarningsKobo ?? 0)} />
               <Stat
                 label="Average rating"
                 value={driver.averageRating ? `${driver.averageRating.toFixed(2)} ★` : '—'}
@@ -98,14 +175,22 @@ export function DriverDetail() {
 
           <Card>
             <SectionTitle>Vehicle</SectionTitle>
-            <StatRow
-              label="Make / model"
-              value={`${driver.vehicle.make} ${driver.vehicle.model}`}
-            />
-            <StatRow label="Year" value={driver.vehicle.year} />
-            <StatRow label="Color" value={driver.vehicle.color} />
-            <StatRow label="Plate" value={driver.vehicle.plate} />
-            <StatRow label="Tier" value={carType?.name ?? '—'} />
+            {driver.vehicle ? (
+              <>
+                <StatRow
+                  label="Make / model"
+                  value={`${driver.vehicle.make} ${driver.vehicle.model}`}
+                />
+                <StatRow label="Year" value={driver.vehicle.year} />
+                <StatRow label="Color" value={driver.vehicle.color} />
+                <StatRow label="Plate" value={driver.vehicle.plate} />
+                <StatRow label="Tier" value={carType?.name ?? '—'} />
+              </>
+            ) : (
+              <div style={{ color: 'var(--c-textMuted)', fontSize: 13 }}>
+                No vehicle on file.
+              </div>
+            )}
           </Card>
 
           <Card>
@@ -142,7 +227,7 @@ export function DriverDetail() {
                   header: 'ID',
                   render: (b) => (
                     <Link to={`/bookings/${b.id}`} style={{ fontWeight: 600 }}>
-                      {b.id}
+                      {b.id.slice(0, 6).toUpperCase()}
                     </Link>
                   ),
                 },
@@ -151,20 +236,22 @@ export function DriverDetail() {
                   header: 'Route',
                   render: (b) => (
                     <span style={{ fontSize: 13 }}>
-                      {b.pickup.label} → {b.dropoff.label}
+                      {b.pickup?.label ?? '—'} → {b.dropoff?.label ?? '—'}
                     </span>
                   ),
                 },
                 {
                   key: 'fare',
                   header: 'Fare',
-                  render: (b) => formatNaira(b.fare.total),
+                  render: (b) => formatNaira(b.fare?.total ?? 0),
                   align: 'right',
                 },
                 {
                   key: 'status',
                   header: 'Status',
-                  render: (b) => <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />,
+                  render: (b) => (
+                    <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />
+                  ),
                 },
                 {
                   key: 'when',
@@ -199,22 +286,6 @@ export function DriverDetail() {
                 Driver has not shared a location yet.
               </div>
             )}
-            <div
-              style={{
-                height: 160,
-                marginTop: 16,
-                borderRadius: 10,
-                background:
-                  'linear-gradient(135deg, var(--c-divider), var(--c-background))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--c-textMuted)',
-                fontSize: 12,
-              }}
-            >
-              Map preview · Mapbox wiring pending
-            </div>
           </Card>
 
           <Card>

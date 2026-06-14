@@ -1,3 +1,10 @@
+/* YB Ride staff — Stripe-leaning SaaS aesthetic.
+ *
+ * The color tokens are set as CSS variables by ThemeProvider (--c-text,
+ * --c-background, etc.). This file defines the typography, layout
+ * primitives, and motion that anchor the "premium operational tool" feel.
+ */
+
 *,
 *::before,
 *::after {
@@ -12,30 +19,80 @@ body,
 }
 
 html {
+  /* System font stack — same family Stripe / Linear use. Inter would be
+     a tiny win if added later via a font hosting service, but the system
+     stack is free and 99% as good. */
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--c-text);
-  background: var(--c-background);
+  background: var(--c-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Subtle font feature: enable kerning + ligatures for premium type feel */
+  font-feature-settings: 'kern', 'liga', 'calt';
 }
 
 body {
   margin: 0;
-  background: var(--c-background);
+  background: var(--c-surface);
   color: var(--c-text);
+}
+
+/* ── Typography scale ─────────────────────────────────────────────────── */
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  margin: 0;
+  color: var(--c-text);
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+  margin: 0;
+  color: var(--c-text);
+}
+
+h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0;
+  color: var(--c-text);
+}
+
+h4, h5, h6 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  color: var(--c-text);
+}
+
+p {
+  margin: 0;
 }
 
 a {
   color: var(--c-primary);
   text-decoration: none;
+  font-weight: 500;
+  transition: color 120ms ease;
 }
 
 a:hover {
   text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 button {
@@ -52,37 +109,307 @@ textarea {
   color: inherit;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  margin: 0;
-  font-weight: 600;
+/* ── Cards + surfaces ─────────────────────────────────────────────────── */
+
+.card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  box-shadow: var(--c-shadowSoft);
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+.card-elevated {
+  background: var(--c-cardElevated);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  box-shadow: var(--c-shadowMd);
+}
+
+.card-interactive {
+  cursor: pointer;
+}
+
+.card-interactive:hover {
+  box-shadow: var(--c-shadowMd);
+  transform: translateY(-1px);
+}
+
+/* ── Buttons (Stripe-ish primary) ─────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--c-primary);
+  color: var(--c-textInverse);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    transform 80ms ease,
+    box-shadow 120ms ease;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+}
+
+.btn:hover {
+  background: var(--c-primaryDim);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.btn:active {
+  transform: translateY(0.5px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--c-card);
+  color: var(--c-text);
+  border-color: var(--c-border);
+  box-shadow: var(--c-shadowSoft);
+}
+
+.btn-secondary:hover {
+  background: var(--c-surface);
+  border-color: var(--c-borderStrong);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--c-textMuted);
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  background: var(--c-surface);
   color: var(--c-text);
 }
 
-p {
-  margin: 0;
+.btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 6px;
 }
 
+.btn-lg {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+
+.input {
+  height: 36px;
+  width: 100%;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--c-text);
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04) inset;
+}
+
+.input:hover {
+  border-color: var(--c-textSubtle);
+}
+
+.input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(10, 37, 64, 0.1);
+}
+
+.input::placeholder {
+  color: var(--c-textSubtle);
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--c-shadowSoft);
+}
+
+.table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--c-textMuted);
+  background: var(--c-surface);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.table td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--c-text);
+  border-bottom: 1px solid var(--c-divider);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: var(--c-surface);
+}
+
+/* ── Status pills ─────────────────────────────────────────────────────── */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pill-success {
+  color: var(--c-success);
+  background: var(--c-successSoft);
+}
+
+.pill-error {
+  color: var(--c-error);
+  background: var(--c-errorSoft);
+}
+
+.pill-warning {
+  color: var(--c-warning);
+  background: var(--c-warningSoft);
+}
+
+.pill-info {
+  color: var(--c-info);
+  background: var(--c-infoSoft);
+}
+
+.pill-brand {
+  color: #0A0A0A;
+  background: var(--c-brandSoft);
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+
+.sidebar {
+  background: var(--c-card);
+  border-right: 1px solid var(--c-border);
+  padding: 16px 12px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-textMuted);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.sidebar-link:hover {
+  background: var(--c-surface);
+  color: var(--c-text);
+  text-decoration: none;
+}
+
+.sidebar-link.active {
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-weight: 600;
+}
+
+/* ── KPI cards (Dashboard) ────────────────────────────────────────────── */
+
+.kpi {
+  padding: 20px;
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  box-shadow: var(--c-shadowSoft);
+}
+
+.kpi-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--c-textMuted);
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--c-text);
+}
+
+.kpi-delta {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.kpi-delta-up {
+  color: var(--c-success);
+}
+
+.kpi-delta-down {
+  color: var(--c-error);
+}
+
+/* ── Scrollbars (subtle, Stripe-ish) ──────────────────────────────────── */
+
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--c-border);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--c-textMuted);
+  background: var(--c-textSubtle);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Utility — visually hidden but accessible to screen readers */
+/* ── Utilities ────────────────────────────────────────────────────────── */
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -93,4 +420,37 @@ p {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.muted {
+  color: var(--c-textMuted);
+}
+
+.subtle {
+  color: var(--c-textSubtle);
+}
+
+.uppercase-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--c-textMuted);
+}
+
+.fade-in {
+  animation: fadeIn 200ms ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mapbox container fill — same as before but with the new radius scale */
+.mapbox-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
 }

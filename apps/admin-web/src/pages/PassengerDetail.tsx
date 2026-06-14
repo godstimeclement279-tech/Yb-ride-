@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import type { Booking, Passenger } from '@yb/shared';
+import { COLLECTIONS } from '@yb/shared';
 import {
   Button,
   Card,
@@ -10,12 +14,59 @@ import {
   Table,
 } from '../components/ui';
 import { BookingStatusPill } from '../components/status';
-import { mockBookings, mockPassengers } from '../data/mock';
+import { FIREBASE_CONFIGURED, getDb } from '../services/firebase';
+import { subscribeBookings } from '../services/firebase/bookingsService';
+import { setPassengerActive } from '../services/firebase/passengersService';
 import { formatDateTime, formatNaira, formatRelative } from '../utils/format';
 
 export function PassengerDetail() {
   const { id } = useParams<{ id: string }>();
-  const passenger = mockPassengers.find((p) => p.id === id);
+  const [passenger, setPassenger] = useState<Passenger | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id || !FIREBASE_CONFIGURED) {
+      setLoaded(true);
+      return;
+    }
+    const db = getDb()!;
+    return onSnapshot(
+      doc(db, COLLECTIONS.USERS, id),
+      (snap) => {
+        setPassenger(snap.exists() ? ({ id: snap.id, ...snap.data() } as Passenger) : null);
+        setLoaded(true);
+      },
+      (err) => {
+        console.warn('passenger subscribe error', err);
+        setLoaded(true);
+      },
+    );
+  }, [id]);
+
+  useEffect(() => subscribeBookings(setBookings), []);
+
+  async function toggleActive() {
+    if (!passenger) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await setPassengerActive(passenger.id, !passenger.isActive);
+    } catch (e: unknown) {
+      const msg = typeof e === 'object' && e && 'message' in e
+        ? String((e as { message: unknown }).message)
+        : 'Could not update passenger.';
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!loaded) {
+    return <EmptyState title="Loading passenger…" description="" action={null} />;
+  }
 
   if (!passenger) {
     return (
@@ -30,12 +81,12 @@ export function PassengerDetail() {
     );
   }
 
-  const trips = mockBookings
+  const trips = bookings
     .filter((b) => b.passengerId === passenger.id)
     .sort((a, b) => b.createdAt - a.createdAt);
 
   const completed = trips.filter((t) => t.status === 'completed');
-  const totalSpend = completed.reduce((sum, t) => sum + t.fare.total, 0);
+  const totalSpend = completed.reduce((sum, t) => sum + (t.fare?.total ?? 0), 0);
 
   return (
     <>
@@ -43,11 +94,35 @@ export function PassengerDetail() {
         title={passenger.name}
         subtitle={`${passenger.phone} · ${passenger.email}`}
         actions={
-          <Link to="/passengers">
-            <Button variant="secondary">Back</Button>
-          </Link>
+          <>
+            <Link to="/passengers">
+              <Button variant="secondary">Back</Button>
+            </Link>
+            <Button
+              variant={passenger.isActive ? 'danger' : 'primary'}
+              onClick={toggleActive}
+              disabled={busy}
+            >
+              {busy ? 'Working…' : passenger.isActive ? 'Suspend' : 'Reactivate'}
+            </Button>
+          </>
         }
       />
+
+      {error && (
+        <div
+          style={{
+            margin: '0 0 12px',
+            padding: 10,
+            background: 'var(--c-errorSoft)',
+            color: 'var(--c-error)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       <div
         style={{
@@ -70,7 +145,7 @@ export function PassengerDetail() {
               {passenger.isActive ? (
                 <Pill tone="success">Active</Pill>
               ) : (
-                <Pill tone="neutral">Inactive</Pill>
+                <Pill tone="neutral">Suspended</Pill>
               )}
             </div>
             <div
@@ -80,7 +155,7 @@ export function PassengerDetail() {
                 gap: 16,
               }}
             >
-              <Stat label="Trips" value={passenger.totalTrips.toLocaleString()} />
+              <Stat label="Trips" value={(passenger.totalTrips ?? 0).toLocaleString()} />
               <Stat label="Lifetime spend" value={formatNaira(totalSpend)} />
               <Stat
                 label="Average rating"
@@ -101,7 +176,7 @@ export function PassengerDetail() {
                   header: 'ID',
                   render: (b) => (
                     <Link to={`/bookings/${b.id}`} style={{ fontWeight: 600 }}>
-                      {b.id}
+                      {b.id.slice(0, 6).toUpperCase()}
                     </Link>
                   ),
                 },
@@ -110,20 +185,22 @@ export function PassengerDetail() {
                   header: 'Route',
                   render: (b) => (
                     <span style={{ fontSize: 13 }}>
-                      {b.pickup.label} → {b.dropoff.label}
+                      {b.pickup?.label ?? '—'} → {b.dropoff?.label ?? '—'}
                     </span>
                   ),
                 },
                 {
                   key: 'fare',
                   header: 'Fare',
-                  render: (b) => formatNaira(b.fare.total),
+                  render: (b) => formatNaira(b.fare?.total ?? 0),
                   align: 'right',
                 },
                 {
                   key: 'status',
                   header: 'Status',
-                  render: (b) => <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />,
+                  render: (b) => (
+                    <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />
+                  ),
                 },
                 {
                   key: 'when',

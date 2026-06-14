@@ -1,7 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import type { Booking, Driver, Passenger, Staff } from '@yb/shared';
+import { doc, getDoc } from 'firebase/firestore';
 import { Button, Card, EmptyState, PageHeader, SectionTitle, StatRow } from '../components/ui';
 import { BookingStatusPill } from '../components/status';
-import { mockBookings, mockDrivers, mockPassengers, mockStaff } from '../data/mock';
+import { subscribeBooking } from '../services/firebase/bookingsService';
+import { FIREBASE_CONFIGURED, getDb } from '../services/firebase';
+import { COLLECTIONS } from '@yb/shared';
 import {
   formatDateTime,
   formatDistance,
@@ -12,7 +17,48 @@ import {
 
 export function BookingDetail() {
   const { id } = useParams<{ id: string }>();
-  const booking = mockBookings.find((b) => b.id === id);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [passenger, setPassenger] = useState<Passenger | null>(null);
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [assignedBy, setAssignedBy] = useState<Staff | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    return subscribeBooking(id, (b) => {
+      setBooking(b);
+      setLoaded(true);
+    });
+  }, [id]);
+
+  // Resolve related docs (passenger / driver / assigning staff) once we have
+  // the booking. These are point reads — they don't need to be live.
+  useEffect(() => {
+    if (!booking || !FIREBASE_CONFIGURED) return;
+    const db = getDb()!;
+    (async () => {
+      const pSnap = await getDoc(doc(db, COLLECTIONS.USERS, booking.passengerId));
+      setPassenger(pSnap.exists() ? ({ id: pSnap.id, ...pSnap.data() } as Passenger) : null);
+      if (booking.driverId) {
+        const dSnap = await getDoc(doc(db, COLLECTIONS.DRIVERS, booking.driverId));
+        setDriver(dSnap.exists() ? ({ id: dSnap.id, ...dSnap.data() } as Driver) : null);
+      } else {
+        setDriver(null);
+      }
+      if (booking.staffAssignedBy) {
+        const sSnap = await getDoc(doc(db, COLLECTIONS.STAFF, booking.staffAssignedBy));
+        setAssignedBy(sSnap.exists() ? ({ id: sSnap.id, ...sSnap.data() } as Staff) : null);
+      } else {
+        setAssignedBy(null);
+      }
+    })();
+  }, [booking]);
+
+  if (!loaded) {
+    return (
+      <EmptyState title="Loading booking…" description="" action={null} />
+    );
+  }
 
   if (!booking) {
     return (
@@ -28,12 +74,6 @@ export function BookingDetail() {
     );
   }
 
-  const passenger = mockPassengers.find((p) => p.id === booking.passengerId);
-  const driver = booking.driverId ? mockDrivers.find((d) => d.id === booking.driverId) : undefined;
-  const assignedBy = booking.staffAssignedBy
-    ? mockStaff.find((s) => s.id === booking.staffAssignedBy)
-    : undefined;
-
   const lifecycle: { label: string; ts?: number }[] = [
     { label: 'Created', ts: booking.createdAt },
     { label: 'Paid', ts: booking.paidAt },
@@ -47,17 +87,12 @@ export function BookingDetail() {
   return (
     <>
       <PageHeader
-        title={`Booking ${booking.id}`}
+        title={`Booking ${booking.id.slice(0, 6).toUpperCase()}`}
         subtitle={`Created ${formatRelative(booking.createdAt)} · ${formatDateTime(booking.createdAt)}`}
         actions={
-          <>
-            <Link to="/bookings">
-              <Button variant="secondary">Back</Button>
-            </Link>
-            {(booking.status === 'paid' || booking.status === 'assigned') && (
-              <Button variant="danger">Cancel booking</Button>
-            )}
-          </>
+          <Link to="/bookings">
+            <Button variant="secondary">Back</Button>
+          </Link>
         }
       />
 
@@ -170,8 +205,8 @@ export function BookingDetail() {
               />
               <div>
                 <div style={{ fontSize: 13, color: 'var(--c-textMuted)' }}>Pickup</div>
-                <div style={{ fontWeight: 500 }}>{booking.pickup.label}</div>
-                <div style={{ fontSize: 13 }}>{booking.pickup.formatted}</div>
+                <div style={{ fontWeight: 500 }}>{booking.pickup?.label}</div>
+                <div style={{ fontSize: 13 }}>{booking.pickup?.formatted}</div>
               </div>
               <div
                 style={{
@@ -184,29 +219,29 @@ export function BookingDetail() {
               />
               <div>
                 <div style={{ fontSize: 13, color: 'var(--c-textMuted)' }}>Dropoff</div>
-                <div style={{ fontWeight: 500 }}>{booking.dropoff.label}</div>
-                <div style={{ fontSize: 13 }}>{booking.dropoff.formatted}</div>
+                <div style={{ fontWeight: 500 }}>{booking.dropoff?.label}</div>
+                <div style={{ fontSize: 13 }}>{booking.dropoff?.formatted}</div>
               </div>
             </div>
           </Card>
 
           <Card>
             <SectionTitle>Fare breakdown</SectionTitle>
-            <StatRow label="Car type" value={booking.fare.carTypeName} />
-            <StatRow label="Base fare" value={formatNaira(booking.fare.baseFare)} />
+            <StatRow label="Car type" value={booking.fare?.carTypeName ?? '—'} />
+            <StatRow label="Base fare" value={formatNaira(booking.fare?.baseFare ?? 0)} />
             <StatRow
-              label={`Distance · ${formatDistance(booking.fare.estimatedDistanceKm)}`}
-              value={formatNaira(booking.fare.distanceFare)}
+              label={`Distance · ${formatDistance(booking.fare?.estimatedDistanceKm ?? 0)}`}
+              value={formatNaira(booking.fare?.distanceFare ?? 0)}
             />
-            {booking.fare.zoneSurcharge > 0 && (
+            {(booking.fare?.zoneSurcharge ?? 0) > 0 && (
               <StatRow
-                label={`Zone surcharge · ${booking.fare.appliedZoneIds.join(', ')}`}
-                value={formatNaira(booking.fare.zoneSurcharge)}
+                label={`Zone surcharge · ${(booking.fare?.appliedZoneIds ?? []).join(', ')}`}
+                value={formatNaira(booking.fare?.zoneSurcharge ?? 0)}
               />
             )}
             <StatRow
               label="Estimated duration"
-              value={formatDuration(booking.fare.estimatedDurationMin)}
+              value={formatDuration(booking.fare?.estimatedDurationMin ?? 0)}
             />
             <div
               style={{
@@ -219,7 +254,7 @@ export function BookingDetail() {
               }}
             >
               <span>Total</span>
-              <span>{formatNaira(booking.fare.total)}</span>
+              <span>{formatNaira(booking.fare?.total ?? 0)}</span>
             </div>
           </Card>
         </div>
@@ -253,7 +288,9 @@ export function BookingDetail() {
               <>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{driver.name}</div>
                 <div style={{ fontSize: 13, color: 'var(--c-textMuted)' }}>
-                  {driver.vehicle.make} {driver.vehicle.model} · {driver.vehicle.plate}
+                  {driver.vehicle
+                    ? `${driver.vehicle.make} ${driver.vehicle.model} · ${driver.vehicle.plate}`
+                    : 'No vehicle on file'}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--c-textMuted)', marginBottom: 12 }}>
                   {driver.phone}

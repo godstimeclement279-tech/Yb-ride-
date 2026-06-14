@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { BookingStatus } from '@yb/shared';
+import type { Booking, BookingStatus, Driver, Passenger } from '@yb/shared';
 import { Input, PageHeader, Pill, Select, Table, Toolbar } from '../components/ui';
 import { BookingStatusPill } from '../components/status';
-import { mockBookings, mockDrivers, mockPassengers } from '../data/mock';
+import { subscribeBookings } from '../services/firebase/bookingsService';
+import { subscribeDrivers } from '../services/firebase/driversService';
+import { subscribePassengers } from '../services/firebase/passengersService';
 import { formatDateTime, formatNaira, formatRelative } from '../utils/format';
 
 const STATUSES: ('all' | BookingStatus)[] = [
@@ -17,30 +19,46 @@ const STATUSES: ('all' | BookingStatus)[] = [
   'cancelled',
 ];
 
-const passengerById = (id: string) => mockPassengers.find((p) => p.id === id);
-const driverById = (id?: string) => (id ? mockDrivers.find((d) => d.id === id) : undefined);
-
 export function Bookings() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
   const [search, setSearch] = useState('');
 
+  useEffect(() => subscribeBookings(setBookings), []);
+  useEffect(() => subscribeDrivers(setDrivers), []);
+  useEffect(() => subscribePassengers(setPassengers), []);
+
+  const passengerById = useMemo(() => {
+    const map = new Map<string, Passenger>();
+    for (const p of passengers) map.set(p.id, p);
+    return map;
+  }, [passengers]);
+
+  const driverById = useMemo(() => {
+    const map = new Map<string, Driver>();
+    for (const d of drivers) map.set(d.id, d);
+    return map;
+  }, [drivers]);
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return [...mockBookings]
+    return [...bookings]
       .filter((b) => statusFilter === 'all' || b.status === statusFilter)
       .filter((b) => {
         if (!q) return true;
-        const passenger = passengerById(b.passengerId);
+        const passenger = passengerById.get(b.passengerId);
         return (
           b.id.toLowerCase().includes(q) ||
-          passenger?.name.toLowerCase().includes(q) ||
-          passenger?.phone.includes(q) ||
-          b.pickup.formatted.toLowerCase().includes(q) ||
-          b.dropoff.formatted.toLowerCase().includes(q)
+          (passenger?.name ?? '').toLowerCase().includes(q) ||
+          (passenger?.phone ?? '').includes(q) ||
+          (b.pickup?.formatted ?? '').toLowerCase().includes(q) ||
+          (b.dropoff?.formatted ?? '').toLowerCase().includes(q)
         );
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [statusFilter, search]);
+  }, [bookings, statusFilter, search, passengerById]);
 
   return (
     <>
@@ -68,7 +86,7 @@ export function Bookings() {
           ))}
         </Select>
         <span style={{ marginLeft: 'auto', color: 'var(--c-textMuted)', fontSize: 13 }}>
-          {rows.length} of {mockBookings.length}
+          {rows.length} of {bookings.length}
         </span>
       </Toolbar>
 
@@ -81,7 +99,7 @@ export function Bookings() {
             header: 'ID',
             render: (b) => (
               <Link to={`/bookings/${b.id}`} style={{ fontWeight: 600 }}>
-                {b.id}
+                {b.id.slice(0, 6).toUpperCase()}
               </Link>
             ),
             width: 100,
@@ -90,12 +108,12 @@ export function Bookings() {
             key: 'passenger',
             header: 'Passenger',
             render: (b) => {
-              const p = passengerById(b.passengerId);
+              const p = passengerById.get(b.passengerId);
               return (
                 <div>
                   <div style={{ fontWeight: 500 }}>{p?.name ?? b.passengerId}</div>
                   <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
-                    {p?.phone}
+                    {p?.phone ?? ''}
                   </div>
                 </div>
               );
@@ -106,9 +124,9 @@ export function Bookings() {
             header: 'Route',
             render: (b) => (
               <div style={{ maxWidth: 320 }}>
-                <div style={{ fontSize: 13 }}>{b.pickup.formatted}</div>
+                <div style={{ fontSize: 13 }}>{b.pickup?.formatted ?? '—'}</div>
                 <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
-                  → {b.dropoff.formatted}
+                  → {b.dropoff?.formatted ?? '—'}
                 </div>
               </div>
             ),
@@ -117,7 +135,7 @@ export function Bookings() {
             key: 'driver',
             header: 'Driver',
             render: (b) => {
-              const d = driverById(b.driverId);
+              const d = b.driverId ? driverById.get(b.driverId) : undefined;
               if (!d) return <span style={{ color: 'var(--c-textMuted)' }}>—</span>;
               return (
                 <Link to={`/drivers/${d.id}`} style={{ fontWeight: 500 }}>
@@ -131,9 +149,9 @@ export function Bookings() {
             header: 'Fare',
             render: (b) => (
               <div>
-                <div style={{ fontWeight: 600 }}>{formatNaira(b.fare.total)}</div>
+                <div style={{ fontWeight: 600 }}>{formatNaira(b.fare?.total ?? 0)}</div>
                 <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
-                  {b.fare.carTypeName}
+                  {b.fare?.carTypeName ?? ''}
                 </div>
               </div>
             ),

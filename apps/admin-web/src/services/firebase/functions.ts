@@ -63,3 +63,19 @@ export async function createStaffViaCallable(
   const res = await fn(args);
   return res.data;
 }
+
+interface DeleteAccountArgs {
+  role: 'staff' | 'driver';
+  uid: string;
+}
+
+export async function deleteAccountViaCallable(
+  args: DeleteAccountArgs,
+): Promise<void> {
+  const fns = getFns();
+  if (!fns) {
+    throw new Error('Firebase not configured.');
+  }
+  const fn = httpsCallable<DeleteAccountArgs, { ok: true }>(fns, 'deleteAccount');
+  await fn(args);
+}

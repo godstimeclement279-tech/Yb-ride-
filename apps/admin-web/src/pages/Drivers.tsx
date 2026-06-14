@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { DriverStatus } from '@yb/shared';
+import type { CarType, Driver, DriverStatus } from '@yb/shared';
 import {
   Button,
   Field,
@@ -12,8 +12,16 @@ import {
   Toolbar,
 } from '../components/ui';
 import { ApprovalPill, DriverStatusPill } from '../components/status';
-import { mockCarTypes, mockDrivers } from '../data/mock';
-import { createStaffViaCallable } from '../services/firebase/functions';
+import { subscribeCarTypes } from '../services/firebase/carTypesService';
+import {
+  subscribeDrivers,
+  setDriverActive,
+} from '../services/firebase/driversService';
+import {
+  createStaffViaCallable,
+  deleteAccountViaCallable,
+} from '../services/firebase/functions';
+import { useAuth } from '../context/AuthContext';
 import { formatNaira, formatRelative } from '../utils/format';
 
 const STATUS_FILTERS: ('all' | DriverStatus | 'pending')[] = [
@@ -26,13 +34,22 @@ const STATUS_FILTERS: ('all' | DriverStatus | 'pending')[] = [
 ];
 
 export function Drivers() {
+  const { admin } = useAuth();
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [carTypes, setCarTypes] = useState<CarType[]>([]);
   const [filter, setFilter] = useState<'all' | DriverStatus | 'pending'>('all');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => subscribeDrivers(setDrivers), []);
+  useEffect(() => subscribeCarTypes(setCarTypes), []);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return mockDrivers
+    return drivers
       .filter((d) => {
         if (filter === 'all') return true;
         if (filter === 'pending') return !d.approvedAt;
@@ -42,12 +59,41 @@ export function Drivers() {
         if (!q) return true;
         return (
           d.name.toLowerCase().includes(q) ||
-          d.phone.includes(q) ||
-          d.email.toLowerCase().includes(q) ||
-          d.vehicle.plate.toLowerCase().includes(q)
+          (d.phone ?? '').includes(q) ||
+          (d.email ?? '').toLowerCase().includes(q) ||
+          (d.vehicle?.plate ?? '').toLowerCase().includes(q)
         );
       });
-  }, [filter, search]);
+  }, [drivers, filter, search]);
+
+  const pendingDelete = drivers.find((d) => d.id === pendingDeleteId) ?? null;
+
+  async function toggleActive(driver: Driver) {
+    if (!admin) return;
+    setActionBusyId(driver.id);
+    setActionError(null);
+    try {
+      await setDriverActive(driver.id, !driver.isActive, admin.id);
+    } catch (e: unknown) {
+      setActionError(driverActionError(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    setActionBusyId(pendingDeleteId);
+    setActionError(null);
+    try {
+      await deleteAccountViaCallable({ role: 'driver', uid: pendingDeleteId });
+      setPendingDeleteId(null);
+    } catch (e: unknown) {
+      setActionError(driverActionError(e));
+    } finally {
+      setActionBusyId(null);
+    }
+  }
 
   return (
     <>
@@ -82,9 +128,24 @@ export function Drivers() {
           ))}
         </Select>
         <span style={{ marginLeft: 'auto', color: 'var(--c-textMuted)', fontSize: 13 }}>
-          {rows.length} of {mockDrivers.length}
+          {rows.length} of {drivers.length}
         </span>
       </Toolbar>
+
+      {actionError && (
+        <div
+          style={{
+            margin: '0 0 12px',
+            padding: 10,
+            background: 'var(--c-errorSoft)',
+            color: 'var(--c-error)',
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {actionError}
+        </div>
+      )}
 
       <Table
         rows={rows}
@@ -96,29 +157,34 @@ export function Drivers() {
             render: (d) => (
               <Link to={`/drivers/${d.id}`}>
                 <div style={{ fontWeight: 600 }}>{d.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>{d.phone}</div>
+                <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
+                  {d.phone}
+                </div>
               </Link>
             ),
           },
           {
             key: 'vehicle',
             header: 'Vehicle',
-            render: (d) => (
-              <div>
+            render: (d) =>
+              d.vehicle ? (
                 <div>
-                  {d.vehicle.make} {d.vehicle.model} ({d.vehicle.year})
+                  <div>
+                    {d.vehicle.make} {d.vehicle.model} ({d.vehicle.year})
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
+                    {d.vehicle.color} · {d.vehicle.plate}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--c-textMuted)' }}>
-                  {d.vehicle.color} · {d.vehicle.plate}
-                </div>
-              </div>
-            ),
+              ) : (
+                <span style={{ color: 'var(--c-textMuted)' }}>—</span>
+              ),
           },
           {
             key: 'carType',
             header: 'Tier',
             render: (d) => {
-              const ct = mockCarTypes.find((c) => c.id === d.carTypeId);
+              const ct = carTypes.find((c) => c.id === d.carTypeId);
               return ct?.name ?? '—';
             },
           },
@@ -130,7 +196,7 @@ export function Drivers() {
           {
             key: 'approval',
             header: 'Approval',
-            render: (d) => <ApprovalPill approved={!!d.approvedAt} />,
+            render: (d) => <ApprovalPill approved={!!d.approvedAt && d.isActive} />,
           },
           {
             key: 'rating',
@@ -146,13 +212,13 @@ export function Drivers() {
           {
             key: 'trips',
             header: 'Trips',
-            render: (d) => d.totalTrips.toLocaleString(),
+            render: (d) => (d.totalTrips ?? 0).toLocaleString(),
             align: 'right',
           },
           {
             key: 'earnings',
             header: 'Lifetime earnings',
-            render: (d) => formatNaira(d.totalEarningsKobo),
+            render: (d) => formatNaira(d.totalEarningsKobo ?? 0),
             align: 'right',
           },
           {
@@ -164,16 +230,93 @@ export function Drivers() {
               </span>
             ),
           },
+          {
+            key: 'actions',
+            header: '',
+            render: (d) => (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Button
+                  size="sm"
+                  variant={d.isActive ? 'ghost' : 'secondary'}
+                  disabled={actionBusyId === d.id}
+                  onClick={() => toggleActive(d)}
+                >
+                  {d.isActive ? 'Suspend' : 'Approve'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={actionBusyId === d.id}
+                  onClick={() => setPendingDeleteId(d.id)}
+                  style={{ color: 'var(--c-error)' }}
+                >
+                  Delete
+                </Button>
+              </div>
+            ),
+            align: 'right',
+          },
         ]}
       />
 
-      <CreateDriverModal open={showCreate} onClose={() => setShowCreate(false)} />
+      <CreateDriverModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        carTypes={carTypes}
+      />
+
+      <Modal
+        open={!!pendingDelete}
+        onClose={() => setPendingDeleteId(null)}
+        title="Delete driver?"
+        width={440}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => setPendingDeleteId(null)}
+              disabled={actionBusyId === pendingDeleteId}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              disabled={actionBusyId === pendingDeleteId}
+              style={{ background: 'var(--c-error)', color: '#fff' }}
+            >
+              {actionBusyId === pendingDeleteId ? 'Deleting…' : 'Delete forever'}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ margin: 0, fontSize: 14 }}>
+          This permanently removes <strong>{pendingDelete?.name}</strong> from
+          YB Ride. They can no longer sign in. Past bookings will keep the
+          driver name for the record. Use <em>Suspend</em> instead if you may
+          want to restore the account later.
+        </p>
+      </Modal>
     </>
   );
 }
 
-function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const firstCarType = mockCarTypes[0]?.id ?? 'standard';
+function CreateDriverModal({
+  open,
+  onClose,
+  carTypes,
+}: {
+  open: boolean;
+  onClose: () => void;
+  carTypes: CarType[];
+}) {
+  const firstCarType = carTypes[0]?.id ?? 'standard';
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -188,11 +331,18 @@ function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ email: string; password: string } | null>(null);
 
+  // Keep car-type select valid as the catalog loads.
+  useEffect(() => {
+    if (!carTypes.find((c) => c.id === carTypeId) && carTypes[0]) {
+      setCarTypeId(carTypes[0].id);
+    }
+  }, [carTypes, carTypeId]);
+
   function reset() {
     setName('');
     setPhone('');
     setEmail('');
-    setCarTypeId(firstCarType);
+    setCarTypeId(carTypes[0]?.id ?? 'standard');
     setMake('');
     setModel('');
     setYear(String(new Date().getFullYear() - 5));
@@ -246,11 +396,7 @@ function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => vo
       });
       setSuccess({ email: email.trim(), password });
     } catch (e: unknown) {
-      const msg =
-        typeof e === 'object' && e && 'message' in e
-          ? String((e as { message: unknown }).message)
-          : 'Could not create driver account.';
-      setError(friendlyError(msg));
+      setError(driverActionError(e));
     } finally {
       setSubmitting(false);
     }
@@ -345,7 +491,7 @@ function CreateDriverModal({ open, onClose }: { open: boolean; onClose: () => vo
             value={carTypeId}
             onChange={(e) => setCarTypeId(e.target.value)}
           >
-            {mockCarTypes.map((c) => (
+            {carTypes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -435,7 +581,11 @@ function generateTempPassword(length = 10): string {
   return out;
 }
 
-function friendlyError(msg: string): string {
+function driverActionError(e: unknown): string {
+  const msg =
+    typeof e === 'object' && e && 'message' in e
+      ? String((e as { message: unknown }).message)
+      : 'Could not finish that action.';
   const lower = msg.toLowerCase();
   if (lower.includes('unauthenticated')) {
     return 'Sign in as an admin first.';
@@ -448,6 +598,9 @@ function friendlyError(msg: string): string {
   }
   if (lower.includes('invalid-argument')) {
     return 'One or more fields are invalid. Check email + phone + plate format.';
+  }
+  if (lower.includes('failed-precondition')) {
+    return msg.replace(/^.*?:\s*/, '');
   }
   return msg;
 }

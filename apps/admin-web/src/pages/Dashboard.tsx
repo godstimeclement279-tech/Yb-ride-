@@ -1,40 +1,41 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import type { Booking, Driver } from '@yb/shared';
 import { Card, KpiCard, PageHeader, SectionTitle, Table } from '../components/ui';
 import { BookingStatusPill, DriverStatusPill } from '../components/status';
-import { mockBookings, mockDrivers } from '../data/mock';
-import { formatNaira } from '../utils/format';
-import { formatRelative } from '../utils/format';
+import { subscribeBookings } from '../services/firebase/bookingsService';
+import { subscribeDrivers } from '../services/firebase/driversService';
+import { formatNaira, formatRelative } from '../utils/format';
 
 const day = 24 * 60 * 60 * 1000;
 
-function todayBookings() {
-  const since = Date.now() - 1 * day;
-  return mockBookings.filter((b) => b.createdAt >= since);
-}
-
-function activeBookings() {
-  return mockBookings.filter((b) =>
-    ['paid', 'assigned', 'driver_arrived', 'in_progress'].includes(b.status),
-  );
-}
-
-function revenueLast24h(): number {
-  const since = Date.now() - 1 * day;
-  return mockBookings
-    .filter((b) => b.status === 'completed' && (b.completedAt ?? 0) >= since)
-    .reduce((sum, b) => sum + b.fare.total, 0);
-}
-
-function onlineDriverCount(): number {
-  return mockDrivers.filter((d) => d.status === 'online' || d.status === 'on_trip').length;
-}
-
 export function Dashboard() {
-  const recent = [...mockBookings]
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
+  useEffect(() => subscribeBookings(setBookings), []);
+  useEffect(() => subscribeDrivers(setDrivers), []);
+
+  const since = Date.now() - day;
+  const todayCount = bookings.filter((b) => b.createdAt >= since).length;
+  const activeCount = bookings.filter((b) =>
+    ['paid', 'assigned', 'driver_arrived', 'in_progress'].includes(b.status),
+  ).length;
+  const revenue = bookings
+    .filter((b) => b.status === 'completed' && (b.completedAt ?? 0) >= since)
+    .reduce((sum, b) => sum + (b.fare?.total ?? 0), 0);
+  const onlineCount = drivers.filter(
+    (d) => d.status === 'online' || d.status === 'on_trip',
+  ).length;
+  const onTripCount = drivers.filter((d) => d.status === 'on_trip').length;
+  const activeDriverCount = drivers.filter((d) => d.isActive).length;
+  const pendingApprovals = drivers.filter((d) => !d.approvedAt).length;
+
+  const recent = [...bookings]
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 6);
 
-  const onlineDrivers = mockDrivers
+  const onlineDrivers = drivers
     .filter((d) => d.status !== 'offline' && d.status !== 'suspended')
     .slice(0, 5);
 
@@ -42,7 +43,7 @@ export function Dashboard() {
     <>
       <PageHeader
         title="Dashboard"
-        subtitle={`Welcome back. Here's what's happening across YB Ride right now.`}
+        subtitle="Welcome back. Here's what's happening across YB Ride right now."
       />
 
       <div
@@ -55,25 +56,25 @@ export function Dashboard() {
       >
         <KpiCard
           label="Bookings · 24h"
-          value={String(todayBookings().length)}
-          delta={`${activeBookings().length} active right now`}
+          value={String(todayCount)}
+          delta={`${activeCount} active right now`}
           tone="primary"
         />
         <KpiCard
           label="Revenue · 24h"
-          value={formatNaira(revenueLast24h())}
+          value={formatNaira(revenue)}
           delta="Completed trips only"
           tone="success"
         />
         <KpiCard
           label="Drivers online"
-          value={`${onlineDriverCount()} / ${mockDrivers.filter((d) => d.isActive).length}`}
-          delta={`${mockDrivers.filter((d) => d.status === 'on_trip').length} on trip`}
+          value={`${onlineCount} / ${activeDriverCount}`}
+          delta={`${onTripCount} on trip`}
           tone="info"
         />
         <KpiCard
           label="Pending approvals"
-          value={String(mockDrivers.filter((d) => !d.approvedAt).length)}
+          value={String(pendingApprovals)}
           delta="Drivers awaiting review"
           tone="warning"
         />
@@ -110,7 +111,7 @@ export function Dashboard() {
                 header: 'ID',
                 render: (b) => (
                   <Link to={`/bookings/${b.id}`} style={{ fontWeight: 600 }}>
-                    {b.id}
+                    {b.id.slice(0, 6).toUpperCase()}
                   </Link>
                 ),
               },
@@ -119,20 +120,22 @@ export function Dashboard() {
                 header: 'Route',
                 render: (b) => (
                   <span style={{ color: 'var(--c-textMuted)', fontSize: 13 }}>
-                    {b.pickup.label} → {b.dropoff.label}
+                    {b.pickup?.label ?? '—'} → {b.dropoff?.label ?? '—'}
                   </span>
                 ),
               },
               {
                 key: 'fare',
                 header: 'Fare',
-                render: (b) => formatNaira(b.fare.total),
+                render: (b) => formatNaira(b.fare?.total ?? 0),
                 align: 'right',
               },
               {
                 key: 'status',
                 header: 'Status',
-                render: (b) => <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />,
+                render: (b) => (
+                  <BookingStatusPill status={b.status} acceptedAt={b.acceptedAt} />
+                ),
               },
               {
                 key: 'when',
@@ -198,7 +201,9 @@ export function Dashboard() {
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {d.vehicle.make} {d.vehicle.model} · {d.vehicle.plate}
+                      {d.vehicle
+                        ? `${d.vehicle.make} ${d.vehicle.model} · ${d.vehicle.plate}`
+                        : 'No vehicle on file'}
                     </div>
                   </div>
                   <DriverStatusPill status={d.status} />

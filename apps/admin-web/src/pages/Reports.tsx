@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { Booking, CarType, Driver } from '@yb/shared';
 import {
   Card,
   KpiCard,
@@ -7,7 +8,9 @@ import {
   Select,
   Toolbar,
 } from '../components/ui';
-import { mockBookings, mockCarTypes, mockDrivers } from '../data/mock';
+import { subscribeBookings } from '../services/firebase/bookingsService';
+import { subscribeCarTypes } from '../services/firebase/carTypesService';
+import { subscribeDrivers } from '../services/firebase/driversService';
 import { formatNaira } from '../utils/format';
 
 const day = 24 * 60 * 60 * 1000;
@@ -22,15 +25,23 @@ type RangeId = (typeof RANGES)[number]['id'];
 
 export function Reports() {
   const [range, setRange] = useState<RangeId>('30d');
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [carTypes, setCarTypes] = useState<CarType[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+
+  useEffect(() => subscribeBookings(setAllBookings), []);
+  useEffect(() => subscribeCarTypes(setCarTypes), []);
+  useEffect(() => subscribeDrivers(setDrivers), []);
+
   const cutoff = useMemo(() => {
     const r = RANGES.find((x) => x.id === range)!;
     return Date.now() - r.ms;
   }, [range]);
 
-  const bookings = mockBookings.filter((b) => b.createdAt >= cutoff);
+  const bookings = allBookings.filter((b) => b.createdAt >= cutoff);
   const completed = bookings.filter((b) => b.status === 'completed');
   const cancelled = bookings.filter((b) => b.status === 'cancelled');
-  const revenue = completed.reduce((sum, b) => sum + b.fare.total, 0);
+  const revenue = completed.reduce((sum, b) => sum + (b.fare?.total ?? 0), 0);
   const avgFare = completed.length ? Math.round(revenue / completed.length) : 0;
 
   // bookings per day buckets
@@ -55,12 +66,12 @@ export function Reports() {
 
   // breakdown by car type
   const byCarType = useMemo(() => {
-    return mockCarTypes.map((ct) => {
+    return carTypes.map((ct) => {
       const matching = completed.filter((b) => b.carTypeId === ct.id);
-      const total = matching.reduce((sum, b) => sum + b.fare.total, 0);
+      const total = matching.reduce((sum, b) => sum + (b.fare?.total ?? 0), 0);
       return { id: ct.id, name: ct.name, count: matching.length, total };
     });
-  }, [completed]);
+  }, [completed, carTypes]);
 
   // top drivers
   const topDrivers = useMemo(() => {
@@ -69,17 +80,17 @@ export function Reports() {
       if (!b.driverId) continue;
       const cur = totals.get(b.driverId) ?? { trips: 0, revenue: 0 };
       cur.trips += 1;
-      cur.revenue += b.fare.total;
+      cur.revenue += b.fare?.total ?? 0;
       totals.set(b.driverId, cur);
     }
     return [...totals.entries()]
       .map(([driverId, v]) => {
-        const driver = mockDrivers.find((d) => d.id === driverId);
+        const driver = drivers.find((d) => d.id === driverId);
         return { driverId, name: driver?.name ?? driverId, ...v };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
-  }, [completed]);
+  }, [completed, drivers]);
 
   return (
     <>
