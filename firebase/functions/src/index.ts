@@ -9,5 +9,7 @@ import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 
 export { createStaffAccount } from './createStaffAccount';
+export { deleteAccount } from './deleteAccount';
+export { initializePaystackTransaction } from './initializePaystackTransaction';
 export { notifyOnBookingStatusChange } from './notifyOnBookingStatusChange';
 export { paystackWebhook } from './paystackWebhook';
