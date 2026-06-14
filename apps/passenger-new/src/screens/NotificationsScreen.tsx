@@ -64,7 +64,7 @@ export function NotificationsScreen() {
                   opacity: n.read ? 0.7 : 1,
                 }}
               >
-                <IconTile size={44} variant="card">
+                <IconTile size={44} variant="soft">
                   <Text>{CATEGORY_ICON[n.category]}</Text>
                 </IconTile>
                 <View style={{ flex: 1, gap: 2 }}>

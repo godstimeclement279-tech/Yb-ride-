@@ -6,9 +6,11 @@ export type LocationSearchMode = 'pickup' | 'dropoff';
 
 // Pre-auth screens. Mounted instead of RootStack while status='signed_out'.
 export type AuthStackParamList = {
+  BrandSplash: undefined;
   Onboarding: undefined;
   Login: undefined;
   Signup: undefined;
+  ForgotPassword: undefined;
 };
 
 export type RootStackParamList = {

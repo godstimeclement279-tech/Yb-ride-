@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, ScrollView, Share, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -127,7 +127,7 @@ export function PaymentScreen() {
 
         <View style={{ paddingHorizontal: spacing.base, gap: spacing.base }}>
           <Card variant="soft">
-            <Text variant="h4">Trip Summary</Text>
+            <Text variant="h3">Trip Summary</Text>
             <View style={{ marginVertical: spacing.sm }}><Divider /></View>
             <View style={{ gap: spacing.sm }}>
               <Row label="Ride Type" value={`YB ${booking.fare.carTypeName}`} />
@@ -138,14 +138,15 @@ export function PaymentScreen() {
             <View style={{ marginVertical: spacing.sm }}><Divider /></View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text variant="bodyStrong">Total Amount</Text>
-              <Text variant="h4">{formatNaira(total)}</Text>
+              <Text variant="h3">{formatNaira(total)}</Text>
             </View>
           </Card>
 
-          {/* Paystack transfer card */}
+          {/* Paystack transfer card — bordered to match the reference's
+              highlighted payment card (thin dark border instead of yellow). */}
           <Card
             variant="outlined"
-            style={{ borderColor: colors.primary, borderWidth: 1 }}
+            style={{ borderColor: colors.cta, borderWidth: 1 }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <Text style={{ fontSize: 20 }}>🏦</Text>
@@ -291,9 +292,13 @@ function PayField({
           <Text
             variant="smallStrong"
             color="primary"
-            onPress={() => Alert.alert('Copied', `${value} copied to clipboard.`)}
+            onPress={() => {
+              Share.share({ message: value }).catch(() => {
+                Alert.alert('Account details', value);
+              });
+            }}
           >
-            Copy
+            Share
           </Text>
         )}
       </View>

@@ -1,15 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Mapbox, { MapView, Camera, PointAnnotation, ShapeSource, LineLayer } from '@rnmapbox/maps';
+import MapView, {
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+  type MapViewProps,
+} from 'react-native-maps';
 import { useTheme } from '../theme/ThemeProvider';
-import {
-  AGBOR_CENTER,
-  MAPBOX_PUBLIC_TOKEN,
-  getDrivingDirections,
-} from '../services/mapbox';
+import { AGBOR_CENTER, getDrivingDirections } from '../services/mapbox';
 
-// Initialize Mapbox once at module load.
-Mapbox.setAccessToken(MAPBOX_PUBLIC_TOKEN);
+// Map tiles now come from Google via react-native-maps' Android Google
+// Maps provider. Mapbox/OSM had thin Agbor data; Google has full street +
+// POI coverage. Driving directions still come from Mapbox Directions
+// (separate from tiles) because the cost/quality is fine and switching
+// would just add another billed Google API.
 
 interface GeoPoint {
   latitude: number;
@@ -29,6 +33,11 @@ interface MapProps {
   onRoute?: (result: { distanceM: number; durationSec: number }) => void;
 }
 
+// Default deltas chosen so the map opens roughly the equivalent of Mapbox
+// zoom 14 (close enough to read street labels at the Agbor neighborhood
+// level). Smaller delta = more zoomed in.
+const DEFAULT_DELTA = { latitudeDelta: 0.04, longitudeDelta: 0.04 };
+
 export function Map({
   style,
   pickup,
@@ -38,41 +47,40 @@ export function Map({
   bottomPadding = 0,
   onRoute,
 }: MapProps) {
-  const { colors, mode } = useTheme();
-  const cameraRef = useRef<Camera>(null);
+  const { colors } = useTheme();
+  const mapRef = useRef<MapView>(null);
 
-  // Pick a style URL — dark in dark mode, streets otherwise.
-  const styleURL = mode === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street;
-
-  // Centre on whatever is most relevant: route bounds > driver > pickup > Agbor.
-  const initialCenter = useMemo(() => {
-    if (pickup) return [pickup.longitude, pickup.latitude];
-    if (driverLocation) return [driverLocation.longitude, driverLocation.latitude];
-    return [AGBOR_CENTER.longitude, AGBOR_CENTER.latitude];
+  const initialRegion: MapViewProps['initialRegion'] = useMemo(() => {
+    const center = pickup ?? driverLocation ?? AGBOR_CENTER;
+    return { ...DEFAULT_DELTA, latitude: center.latitude, longitude: center.longitude };
   }, [pickup, driverLocation]);
 
-  // When pickup AND dropoff present, fit bounds.
+  // Fit pickup + dropoff into view when both present; otherwise nudge to
+  // pickup if it changes.
   useEffect(() => {
-    if (!cameraRef.current) return;
+    if (!mapRef.current) return;
     if (pickup && dropoff) {
-      cameraRef.current.fitBounds(
-        [Math.min(pickup.longitude, dropoff.longitude), Math.min(pickup.latitude, dropoff.latitude)],
-        [Math.max(pickup.longitude, dropoff.longitude), Math.max(pickup.latitude, dropoff.latitude)],
-        [80, 60, 80 + bottomPadding, 60],
-        700,
+      mapRef.current.fitToCoordinates(
+        [
+          { latitude: pickup.latitude, longitude: pickup.longitude },
+          { latitude: dropoff.latitude, longitude: dropoff.longitude },
+        ],
+        {
+          edgePadding: { top: 80, right: 60, bottom: 80 + bottomPadding, left: 60 },
+          animated: true,
+        },
       );
     } else if (pickup) {
-      cameraRef.current.setCamera({
-        centerCoordinate: [pickup.longitude, pickup.latitude],
-        zoomLevel: 14,
-        animationDuration: 500,
-      });
+      mapRef.current.animateToRegion(
+        { ...DEFAULT_DELTA, latitude: pickup.latitude, longitude: pickup.longitude },
+        500,
+      );
     }
   }, [pickup?.latitude, pickup?.longitude, dropoff?.latitude, dropoff?.longitude, bottomPadding]);
 
-  // Real driving directions from Mapbox. Falls back to a straight line if the
-  // API call fails. Re-fetches when endpoints change.
-  const [routeCoords, setRouteCoords] = useState<Array<[number, number]> | null>(null);
+  // Route polyline + ETA via Mapbox Directions. Falls back to a straight
+  // line if the API call fails. Re-fetches when endpoints change.
+  const [routeCoords, setRouteCoords] = useState<GeoPoint[] | null>(null);
   useEffect(() => {
     if (!showRoute || !pickup || !dropoff) {
       setRouteCoords(null);
@@ -82,13 +90,14 @@ export function Map({
     getDrivingDirections(pickup, dropoff).then((result) => {
       if (cancelled) return;
       if (result) {
-        setRouteCoords(result.routeCoordinates);
+        setRouteCoords(
+          result.routeCoordinates.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
+        );
         onRoute?.({ distanceM: result.distanceM, durationSec: result.durationSec });
       } else {
-        // Fallback: straight line.
         setRouteCoords([
-          [pickup.longitude, pickup.latitude],
-          [dropoff.longitude, dropoff.latitude],
+          { latitude: pickup.latitude, longitude: pickup.longitude },
+          { latitude: dropoff.latitude, longitude: dropoff.longitude },
         ]);
       }
     });
@@ -97,58 +106,37 @@ export function Map({
     };
   }, [showRoute, pickup?.latitude, pickup?.longitude, dropoff?.latitude, dropoff?.longitude, onRoute]);
 
-  const routeGeoJson = useMemo(() => {
-    if (!routeCoords) return null;
-    return {
-      type: 'FeatureCollection' as const,
-      features: [
-        {
-          type: 'Feature' as const,
-          geometry: {
-            type: 'LineString' as const,
-            coordinates: routeCoords,
-          },
-          properties: {},
-        },
-      ],
-    };
-  }, [routeCoords]);
-
   return (
     <View style={[styles.container, style]}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
-        styleURL={styleURL}
-        logoEnabled={false}
-        attributionEnabled
-        compassEnabled={false}
-        scaleBarEnabled={false}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={initialRegion}
+        showsUserLocation
+        showsMyLocationButton={false}
+        showsCompass={false}
+        showsScale={false}
+        toolbarEnabled={false}
         pitchEnabled={false}
+        rotateEnabled={false}
       >
-        <Camera
-          ref={cameraRef}
-          centerCoordinate={initialCenter}
-          zoomLevel={13}
-          animationMode="easeTo"
-          animationDuration={0}
-        />
-
-        {routeGeoJson && (
-          <ShapeSource id="route" shape={routeGeoJson}>
-            <LineLayer
-              id="route-line"
-              style={{
-                lineColor: colors.primary,
-                lineWidth: 4,
-                lineCap: 'round',
-                lineJoin: 'round',
-              }}
-            />
-          </ShapeSource>
+        {routeCoords && (
+          <Polyline
+            coordinates={routeCoords}
+            strokeColor={colors.primary}
+            strokeWidth={4}
+            lineCap="round"
+            lineJoin="round"
+          />
         )}
 
         {pickup && (
-          <PointAnnotation id="pickup" coordinate={[pickup.longitude, pickup.latitude]}>
+          <Marker
+            identifier="pickup"
+            coordinate={{ latitude: pickup.latitude, longitude: pickup.longitude }}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
             <View
               style={{
                 width: 18,
@@ -159,11 +147,15 @@ export function Map({
                 borderColor: '#FFFFFF',
               }}
             />
-          </PointAnnotation>
+          </Marker>
         )}
 
         {dropoff && (
-          <PointAnnotation id="dropoff" coordinate={[dropoff.longitude, dropoff.latitude]}>
+          <Marker
+            identifier="dropoff"
+            coordinate={{ latitude: dropoff.latitude, longitude: dropoff.longitude }}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
             <View
               style={{
                 width: 20,
@@ -174,13 +166,17 @@ export function Map({
                 borderColor: '#FFFFFF',
               }}
             />
-          </PointAnnotation>
+          </Marker>
         )}
 
         {driverLocation && (
-          <PointAnnotation
-            id="driver"
-            coordinate={[driverLocation.longitude, driverLocation.latitude]}
+          <Marker
+            identifier="driver"
+            coordinate={{
+              latitude: driverLocation.latitude,
+              longitude: driverLocation.longitude,
+            }}
+            anchor={{ x: 0.5, y: 0.5 }}
           >
             <View
               style={{
@@ -203,7 +199,7 @@ export function Map({
                 }}
               />
             </View>
-          </PointAnnotation>
+          </Marker>
         )}
       </MapView>
     </View>

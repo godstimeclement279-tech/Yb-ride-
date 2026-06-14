@@ -10,9 +10,9 @@ import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Pill } from '../components/Pill';
 import { useRide } from '../context/RideContext';
-import { MOCK_ACTIVE_DRIVER } from '../data/mockData';
+import { subscribeDriver } from '../services/firebase/driversService';
 import type { RootStackParamList } from '../navigation/types';
-import type { Rating } from '@yb/shared';
+import type { Driver, Rating } from '@yb/shared';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'Rating'>;
@@ -47,6 +47,15 @@ export function RatingScreen() {
   const [comment, setComment] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const driverId = booking?.driverId;
+  React.useEffect(() => {
+    if (!driverId) {
+      setDriver(null);
+      return;
+    }
+    return subscribeDriver(driverId, setDriver);
+  }, [driverId]);
 
   if (!booking) {
     return (
@@ -115,14 +124,15 @@ export function RatingScreen() {
                 gap: spacing.md,
               }}
             >
-              <Avatar name={MOCK_ACTIVE_DRIVER.name} size={56} />
+              <Avatar name={driver?.name ?? 'Driver'} size={56} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyStrong" numberOfLines={1}>
-                  {MOCK_ACTIVE_DRIVER.name}
+                  {driver?.name ?? 'Your driver'}
                 </Text>
                 <Text variant="small" color="muted" numberOfLines={1}>
-                  {MOCK_ACTIVE_DRIVER.vehicle.color} {MOCK_ACTIVE_DRIVER.vehicle.make}{' '}
-                  {MOCK_ACTIVE_DRIVER.vehicle.model} · {MOCK_ACTIVE_DRIVER.vehicle.plate}
+                  {driver?.vehicle
+                    ? `${driver.vehicle.color} ${driver.vehicle.make} ${driver.vehicle.model} · ${driver.vehicle.plate}`
+                    : ''}
                 </Text>
               </View>
             </View>

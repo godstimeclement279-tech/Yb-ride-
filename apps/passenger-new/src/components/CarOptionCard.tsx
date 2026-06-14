@@ -56,19 +56,21 @@ export function CarOptionCard({
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.md,
-        padding: spacing.md,
+        padding: spacing.base,
         borderRadius: radius.lg,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? colors.primary : colors.border,
+        // Selected = dark 1.5px border (premium); unselected = transparent
+        // border so the row sits flush with no visual frame at rest.
+        borderWidth: selected ? 1.5 : 0,
+        borderColor: selected ? colors.cta : 'transparent',
         backgroundColor: colors.background,
         opacity: pressed ? 0.92 : 1,
       })}
     >
       <View
         style={{
-          width: 64,
-          height: 48,
-          borderRadius: radius.sm,
+          width: 72,
+          height: 56,
+          borderRadius: radius.md,
           backgroundColor: tileBg,
           alignItems: 'center',
           justifyContent: 'center',

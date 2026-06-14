@@ -84,7 +84,8 @@ export function HomeScreen() {
           bottomPadding={300}
         />
 
-        {/* Top bar — menu + brand + bell */}
+        {/* Top bar — menu (left) + bell (right). Brand pill removed to match
+            the reference: clean floating circle buttons over the map. */}
         <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
           <View
             style={{
@@ -96,16 +97,6 @@ export function HomeScreen() {
             }}
           >
             <IconButton glyph="≡" onPress={() => navigation.navigate('Settings')} accessibilityLabel="Menu" />
-            <View
-              style={{
-                backgroundColor: colors.card,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.xs,
-                borderRadius: radius.pill,
-              }}
-            >
-              <Text variant="bodyStrong" color="primary">YB Ride</Text>
-            </View>
             <IconButton glyph="◇" onPress={() => navigation.navigate('Notifications')} accessibilityLabel="Notifications" />
           </View>
         </SafeAreaView>
@@ -198,7 +189,7 @@ export function HomeScreen() {
                   <ListItem
                     key={place.label}
                     leading={
-                      <IconTile size={40} variant="card">
+                      <IconTile size={44} variant="soft">
                         <Text>{iconForPlace(place.label)}</Text>
                       </IconTile>
                     }
@@ -216,17 +207,17 @@ export function HomeScreen() {
             showsVerticalScrollIndicator={false}
             style={{ maxHeight: 560 }}
           >
-            <Text variant="h2" style={{ marginBottom: spacing.md }}>Select Ride</Text>
+            <Text variant="h1" style={{ marginBottom: spacing.base }}>Select Ride</Text>
 
-            {/* Pickup + dropoff card — both rows tappable to edit */}
+            {/* Pickup + dropoff card — flush rows separated by a hairline
+                divider, matching the reference. No vertical connector. */}
             <View
               style={{
                 backgroundColor: colors.card,
                 borderWidth: 1,
                 borderColor: colors.border,
                 borderRadius: radius.lg,
-                padding: spacing.base,
-                gap: spacing.sm,
+                paddingHorizontal: spacing.base,
               }}
             >
               <Pressable
@@ -235,14 +226,15 @@ export function HomeScreen() {
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: spacing.md,
+                  paddingVertical: spacing.md,
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
                 <View
                   style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
                     borderWidth: 2,
                     borderColor: colors.text,
                   }}
@@ -253,33 +245,25 @@ export function HomeScreen() {
                     {pickup?.label ?? 'Choose pickup'}
                   </Text>
                 </View>
-                <Text variant="body" color="subtle">›</Text>
               </Pressable>
-              <View style={{ marginLeft: 7, height: 16, width: 2, backgroundColor: colors.border }} />
+              <View style={{ height: 1, backgroundColor: colors.divider, marginLeft: 30 }} />
               <Pressable
                 onPress={() => navigation.navigate('LocationSearch', { mode: 'dropoff' })}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: spacing.md,
+                  paddingVertical: spacing.md,
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
-                <View
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 4,
-                    backgroundColor: colors.dropoff,
-                  }}
-                />
+                <Text style={{ fontSize: 20, color: colors.dropoff }}>📍</Text>
                 <View style={{ flex: 1 }}>
                   <Text variant="caption" color="muted">Destination</Text>
                   <Text variant="body" numberOfLines={1}>
                     {dropoff!.label}
                   </Text>
                 </View>
-                <Text variant="body" color="subtle">›</Text>
               </Pressable>
             </View>
 
@@ -288,7 +272,7 @@ export function HomeScreen() {
               <Pill label="Round trip" active={isRoundTrip} onPress={() => setIsRoundTrip(true)} />
             </View>
 
-            <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+            <View style={{ marginTop: spacing.lg, gap: spacing.md }}>
               {carTypes.map(ct => (
                 <CarOptionCard
                   key={ct.id}
@@ -303,21 +287,23 @@ export function HomeScreen() {
               ))}
             </View>
 
-            <View
-              style={{
+            <Pressable
+              onPress={() => navigation.navigate('PaymentMethods')}
+              style={({ pressed }) => ({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginTop: spacing.lg,
-                paddingHorizontal: spacing.xs,
-              }}
+                opacity: pressed ? 0.7 : 1,
+              })}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Text>🏦</Text>
-                <Text variant="bodyStrong">Bank Transfer · Paystack</Text>
+                <Text>💳</Text>
+                <Text variant="bodyStrong">Personal · Paystack</Text>
+                <Text variant="body" color="subtle">›</Text>
               </View>
               {appliedPromo && <Badge label="Promo Applied" tone="success" />}
-            </View>
+            </Pressable>
 
             <View style={{ height: spacing.lg }} />
             <Button

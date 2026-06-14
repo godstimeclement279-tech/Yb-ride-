@@ -9,13 +9,13 @@ import { Button } from '../components/Button';
 import { BottomSheet } from '../components/BottomSheet';
 import { Map } from '../components/Map';
 import { subscribeDriverLocation } from '../services/firebase/passengerLocationService';
+import { subscribeDriver } from '../services/firebase/driversService';
 import { Avatar } from '../components/Avatar';
 import { IconButton } from '../components/IconButton';
 import { SegmentedProgress } from '../components/SegmentedProgress';
 import { Divider } from '../components/Divider';
 import { useRide } from '../context/RideContext';
-import { MOCK_ACTIVE_DRIVER } from '../data/mockData';
-import { formatNaira, formatDistance, type BookingStatus } from '@yb/shared';
+import { formatNaira, formatDistance, type BookingStatus, type Driver } from '@yb/shared';
 import { formatEtaMinutes, getDrivingDirections } from '../services/mapbox';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -54,7 +54,28 @@ export function TripTrackingScreen() {
   );
   const safeIndex = progressIndex >= 0 ? progressIndex : 0;
 
-  const callDriver = () => Linking.openURL(`tel:${MOCK_ACTIVE_DRIVER.phone}`);
+  const [driver, setDriver] = React.useState<Driver | null>(null);
+  const driverId = booking.driverId;
+  React.useEffect(() => {
+    if (!driverId) {
+      setDriver(null);
+      return;
+    }
+    return subscribeDriver(driverId, setDriver);
+  }, [driverId]);
+
+  const driverName = driver?.name ?? (driverId ? 'Loading driver…' : 'Finding driver…');
+  const driverPhone = driver?.phone ?? '';
+  const driverRating = driver?.averageRating;
+  const driverVehicle = driver?.vehicle;
+
+  const callDriver = () => {
+    if (!driverPhone) {
+      Alert.alert('No phone number', 'Driver has not added a phone number.');
+      return;
+    }
+    Linking.openURL(`tel:${driverPhone}`);
+  };
 
   const onCancel = () =>
     Alert.alert('Cancel this trip?', 'You may be charged a small cancellation fee.', [
@@ -122,6 +143,12 @@ export function TripTrackingScreen() {
       return;
     }
     const inProgress = booking.status === 'in_progress';
+    // Don't compute an ETA before a real driver location exists — routing
+    // pickup→pickup returns a misleading "1 min" while still "Finding driver".
+    if (!driverLocation && !inProgress) {
+      setEtaSec(null);
+      return;
+    }
     const from = driverLocation ?? booking.pickup.point;
     const to = inProgress ? booking.dropoff.point : booking.pickup.point;
     let cancelled = false;
@@ -148,8 +175,9 @@ export function TripTrackingScreen() {
     booking.dropoff.point.longitude,
   ]);
 
-  const etaLabel =
-    etaSec != null
+  const etaLabel = !booking.driverId
+    ? 'Finding driver'
+    : etaSec != null
       ? formatEtaMinutes(etaSec)
       : booking.status === 'in_progress'
         ? '—'
@@ -229,29 +257,32 @@ export function TripTrackingScreen() {
             marginBottom: spacing.md,
           }}
         >
-          <Avatar name={MOCK_ACTIVE_DRIVER.name} size={56} />
+          <Avatar name={driverName} size={56} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-              <Text variant="bodyStrong">{MOCK_ACTIVE_DRIVER.name}</Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: colors.successSoft,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 2,
-                  borderRadius: radius.pill,
-                }}
-              >
-                <Text variant="caption" color="success" style={{ fontWeight: '700' }}>
-                  ★ {MOCK_ACTIVE_DRIVER.rating.toFixed(1)}
-                </Text>
-              </View>
+              <Text variant="bodyStrong">{driverName}</Text>
+              {driverRating !== undefined && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: colors.successSoft,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 2,
+                    borderRadius: radius.pill,
+                  }}
+                >
+                  <Text variant="caption" color="success" style={{ fontWeight: '700' }}>
+                    ★ {driverRating.toFixed(1)}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text variant="small" color="muted">
-              {MOCK_ACTIVE_DRIVER.vehicle.color} {MOCK_ACTIVE_DRIVER.vehicle.make}{' '}
-              {MOCK_ACTIVE_DRIVER.vehicle.model} · {MOCK_ACTIVE_DRIVER.vehicle.plate}
+              {driverVehicle
+                ? `${driverVehicle.color} ${driverVehicle.make} ${driverVehicle.model} · ${driverVehicle.plate}`
+                : 'Driver vehicle pending'}
             </Text>
           </View>
           <IconButton glyph="📞" onPress={callDriver} variant="card" />

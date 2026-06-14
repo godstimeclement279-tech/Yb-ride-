@@ -42,7 +42,7 @@ export function SavedAddressesScreen() {
         onPress={() => navigation.navigate('AddAddress')}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <IconTile variant="card" size={48}>
+          <IconTile variant="soft" size={48}>
             <Text>📍+</Text>
           </IconTile>
           <View style={{ flex: 1 }}>
@@ -58,7 +58,7 @@ export function SavedAddressesScreen() {
         {favorites.map((addr, i) => (
           <React.Fragment key={addr.id}>
             <ListItem
-              leading={<IconTile variant="card" size={44}><Text>{TYPE_ICON[addr.type]}</Text></IconTile>}
+              leading={<IconTile variant="soft" size={44}><Text>{TYPE_ICON[addr.type]}</Text></IconTile>}
               title={addr.label}
               subtitle={addr.formatted}
               trailing={
@@ -79,7 +79,7 @@ export function SavedAddressesScreen() {
             {others.map((addr, i) => (
               <React.Fragment key={addr.id}>
                 <ListItem
-                  leading={<IconTile variant="card" size={44}><Text>📍</Text></IconTile>}
+                  leading={<IconTile variant="soft" size={44}><Text>📍</Text></IconTile>}
                   title={addr.label}
                   subtitle={addr.formatted}
                   trailing={<Text variant="body" color="subtle">≡</Text>}

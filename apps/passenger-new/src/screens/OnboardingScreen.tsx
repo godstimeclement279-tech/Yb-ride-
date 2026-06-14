@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
 import {
-  Dimensions,
+  Animated,
+  Image,
   Pressable,
   ScrollView,
+  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -16,41 +18,54 @@ import { useTheme } from '../theme/ThemeProvider';
 import { markOnboardingComplete } from '../services/onboardingFlag';
 import type { AuthStackParamList } from '../navigation/types';
 
+// Premium 3-slide onboarding. Each slide has a hero card (yellow-tinted
+// gradient background + AI-generated image floating inside), large h1
+// title, body copy, animated pagination dots, and a dark CTA at the
+// bottom. Drop AI-generated PNGs at apps/passenger-new/assets/onboarding/
+// to replace the logo placeholders — see docs/SETUP_ONBOARDING_IMAGES.md
+// for prompts.
+
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Onboarding'>;
 
 interface Slide {
-  emoji: string;
+  image: ReturnType<typeof require>;
   title: string;
   body: string;
 }
 
 const SLIDES: Slide[] = [
   {
-    emoji: '🚗',
+    image: require('../../assets/onboarding/01-movement.png'),
     title: 'Movement made easy',
-    body: 'The fastest way to get where you\'re going with just a few taps.',
+    body: 'Book a ride in under 30 seconds. Pickup pre-filled from your GPS. Three taps to confirm.',
   },
   {
-    emoji: '📍',
-    title: 'Live driver tracking',
-    body: 'See exactly where your driver is, watch them approach in real time, and know your ETA to the minute.',
+    image: require('../../assets/onboarding/02-tracking.png'),
+    title: 'See your driver live',
+    body: 'Watch your driver approach on the map in real time. Know your ETA to the minute.',
   },
   {
-    emoji: '💳',
+    image: require('../../assets/onboarding/03-paystack.png'),
     title: 'Cashless. Upfront.',
-    body: 'Know the fare before you book. Pay securely by bank transfer through Paystack — no surprises.',
+    body: 'See the exact fare before booking. Pay securely by bank transfer through Paystack — no surprises.',
   },
 ];
+
+const BRAND_YELLOW = '#FACC15';
+const BRAND_YELLOW_SOFT = '#FEF3C7';
 
 export function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
-  const width = Dimensions.get('window').width;
+  const { width } = useWindowDimensions();
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(e.nativeEvent.contentOffset.x / width);
+    const x = e.nativeEvent.contentOffset.x;
+    scrollX.setValue(x);
+    const next = Math.round(x / width);
     if (next !== index) setIndex(next);
   };
 
@@ -76,7 +91,8 @@ export function OnboardingScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Top bar — brand mark + skip */}
+      {/* Top bar — small logo wordmark + skip on the right. Lean, no
+          background, sits over the slide content. */}
       <View
         style={{
           flexDirection: 'row',
@@ -84,35 +100,25 @@ export function OnboardingScreen() {
           justifyContent: 'space-between',
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.sm,
+          paddingBottom: spacing.md,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.md,
-              backgroundColor: colors.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ color: colors.textInverse, fontWeight: '900', fontSize: 18 }}>
-              Y
-            </Text>
-          </View>
+          <Image
+            source={require('../../assets/yb-logo.png')}
+            style={{ width: 32, height: 32 }}
+            resizeMode="contain"
+          />
           <Text variant="bodyStrong">YB Ride</Text>
         </View>
-        <Pressable onPress={skipToLogin} hitSlop={10}>
-          <Text variant="smallStrong" color="muted">
-            Skip
-          </Text>
+        <Pressable onPress={skipToLogin} hitSlop={12}>
+          <Text variant="smallStrong" color="muted">Skip</Text>
         </Pressable>
       </View>
 
-      {/* Slides */}
-      <ScrollView
-        ref={scrollRef}
+      {/* Horizontally-paged slides */}
+      <Animated.ScrollView
+        ref={scrollRef as React.RefObject<ScrollView>}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -120,66 +126,108 @@ export function OnboardingScreen() {
         scrollEventThrottle={16}
         style={{ flex: 1 }}
       >
-        {SLIDES.map((slide, i) => (
-          <View
-            key={i}
-            style={{
-              width,
-              paddingHorizontal: spacing.xl,
-              alignItems: 'center',
-              gap: spacing.lg,
-            }}
-          >
-            {/* Hero illustration tile */}
-            <View
-              style={{
-                width: '100%',
-                aspectRatio: 1,
-                marginTop: spacing.xl,
-                borderRadius: radius.xl,
-                backgroundColor: colors.primarySoft,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 120 }}>{slide.emoji}</Text>
-            </View>
+        {SLIDES.map((slide, i) => {
+          // Parallax: the image moves slightly slower than the title so the
+          // composition reads as having depth as the user swipes.
+          const translateImage = scrollX.interpolate({
+            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+            outputRange: [width * 0.25, 0, -width * 0.25],
+            extrapolate: 'clamp',
+          });
 
-            <View style={{ gap: spacing.sm, alignItems: 'center', paddingHorizontal: spacing.md }}>
-              <Text variant="h1" style={{ textAlign: 'center' }}>
-                {slide.title}
-              </Text>
-              <Text
-                variant="body"
-                color="muted"
-                style={{ textAlign: 'center', lineHeight: 22 }}
-              >
-                {slide.body}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Pagination dots */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'center',
-          gap: spacing.xs,
-          marginBottom: spacing.lg,
-        }}
-      >
-        {SLIDES.map((_, i) => {
-          const active = i === index;
           return (
             <View
               key={i}
               style={{
-                width: active ? 24 : 8,
+                width,
+                paddingHorizontal: spacing.lg,
+                gap: spacing.xl,
+              }}
+            >
+              {/* Hero card — tinted gradient backdrop, AI image floating
+                  inside. Soft, warm, premium feel. */}
+              <View
+                style={{
+                  marginTop: spacing.md,
+                  aspectRatio: 1,
+                  borderRadius: 32,
+                  backgroundColor: BRAND_YELLOW_SOFT,
+                  overflow: 'hidden',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {/* Layered yellow glow behind the image — adds depth without
+                    needing a real gradient lib. */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    width: '70%',
+                    aspectRatio: 1,
+                    borderRadius: 999,
+                    backgroundColor: BRAND_YELLOW,
+                    opacity: 0.35,
+                  }}
+                />
+                <Animated.Image
+                  source={slide.image}
+                  style={{
+                    width: '78%',
+                    height: '78%',
+                    transform: [{ translateX: translateImage }],
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+
+              {/* Title + body */}
+              <View style={{ gap: spacing.sm, paddingHorizontal: spacing.sm }}>
+                <Text variant="h1" style={{ textAlign: 'left' }}>
+                  {slide.title}
+                </Text>
+                <Text
+                  variant="body"
+                  color="muted"
+                  style={{ textAlign: 'left', lineHeight: 24, maxWidth: 360 }}
+                >
+                  {slide.body}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </Animated.ScrollView>
+
+      {/* Animated pagination dots — active dot stretches to a pill; inactive
+          dots stay small and muted. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: 6,
+          marginBottom: spacing.lg,
+        }}
+      >
+        {SLIDES.map((_, i) => {
+          const dotWidth = scrollX.interpolate({
+            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+            outputRange: [8, 28, 8],
+            extrapolate: 'clamp',
+          });
+          const dotOpacity = scrollX.interpolate({
+            inputRange: [(i - 1) * width, i * width, (i + 1) * width],
+            outputRange: [0.3, 1, 0.3],
+            extrapolate: 'clamp',
+          });
+          return (
+            <Animated.View
+              key={i}
+              style={{
+                width: dotWidth,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: active ? colors.primary : colors.border,
+                opacity: dotOpacity,
+                backgroundColor: colors.text,
               }}
             />
           );
@@ -200,12 +248,13 @@ export function OnboardingScreen() {
           size="lg"
           rounded="pill"
         />
-        <Pressable onPress={skipToLogin} style={{ alignItems: 'center', paddingVertical: spacing.xs }}>
+        <Pressable
+          onPress={skipToLogin}
+          style={{ alignItems: 'center', paddingVertical: spacing.xs }}
+        >
           <Text variant="small">
             <Text color="muted">Already have an account? </Text>
-            <Text color="text" style={{ fontWeight: '700' }}>
-              Log In
-            </Text>
+            <Text color="text" style={{ fontWeight: '700' }}>Log In</Text>
           </Text>
         </Pressable>
       </View>

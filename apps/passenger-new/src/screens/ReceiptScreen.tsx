@@ -1,7 +1,6 @@
 import React from 'react';
 import { Alert, Share, View } from 'react-native';
-import { useRoute, useNavigation, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, type RouteProp } from '@react-navigation/native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
@@ -12,16 +11,16 @@ import { MapPlaceholder } from '../components/MapPlaceholder';
 import { RouteTimeline } from '../components/RouteTimeline';
 import { useTheme } from '../theme/ThemeProvider';
 import { useRide } from '../context/RideContext';
-import { MOCK_ACTIVE_DRIVER, MOCK_PAST_BOOKINGS } from '../data/mockData';
+import { subscribeDriver } from '../services/firebase/driversService';
 import {
   formatNaira,
   formatNairaExact,
   formatDistance,
+  type Driver,
 } from '@yb/shared';
 import type { RootStackParamList } from '../navigation/types';
 
 type Route = RouteProp<RootStackParamList, 'Receipt'>;
-type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 function fmtTime(ts?: number): string {
   if (!ts) return '—';
@@ -33,13 +32,20 @@ function fmtTime(ts?: number): string {
 
 export function ReceiptScreen() {
   const route = useRoute<Route>();
-  const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
   const { getBooking } = useRide();
 
-  const booking =
-    getBooking(route.params.bookingId) ??
-    MOCK_PAST_BOOKINGS.find(b => b.id === route.params.bookingId);
+  const booking = getBooking(route.params.bookingId);
+
+  const [driver, setDriver] = React.useState<Driver | null>(null);
+  const driverId = booking?.driverId;
+  React.useEffect(() => {
+    if (!driverId) {
+      setDriver(null);
+      return;
+    }
+    return subscribeDriver(driverId, setDriver);
+  }, [driverId]);
 
   if (!booking) {
     return (
@@ -98,12 +104,16 @@ export function ReceiptScreen() {
 
       <Card variant="soft">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <Avatar name={MOCK_ACTIVE_DRIVER.name} size={56} />
+          <Avatar name={driver?.name ?? 'Driver'} size={56} />
           <View style={{ flex: 1 }}>
-            <Text variant="bodyStrong">{MOCK_ACTIVE_DRIVER.name}</Text>
+            <Text variant="bodyStrong">{driver?.name ?? 'Driver'}</Text>
             <Text variant="small" color="muted">
-              ★ {MOCK_ACTIVE_DRIVER.rating.toFixed(1)} · {MOCK_ACTIVE_DRIVER.vehicle.make}{' '}
-              {MOCK_ACTIVE_DRIVER.vehicle.model} ({MOCK_ACTIVE_DRIVER.vehicle.plate})
+              {driver?.averageRating !== undefined
+                ? `★ ${driver.averageRating.toFixed(1)} · `
+                : ''}
+              {driver?.vehicle
+                ? `${driver.vehicle.make} ${driver.vehicle.model} (${driver.vehicle.plate})`
+                : ''}
             </Text>
           </View>
           <View

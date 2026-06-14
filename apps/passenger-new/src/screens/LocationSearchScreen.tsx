@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -15,8 +15,8 @@ import {
   MOCK_CURRENT_LOCATION,
   MOCK_RECENT_PLACES,
   MOCK_SAVED_ADDRESSES,
-  MOCK_SEARCH_INDEX,
 } from '../data/mockData';
+import { searchPlaces } from '../services/google';
 import type { Address } from '@yb/shared';
 import type { LocationSearchMode, RootStackParamList } from '../navigation/types';
 
@@ -48,12 +48,29 @@ export function LocationSearchScreen() {
 
   const query = activeMode === 'pickup' ? pickupQuery : dropoffQuery;
 
-  const matches = useMemo<Address[]>(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return MOCK_SEARCH_INDEX.filter(
-      a => a.label.toLowerCase().includes(q) || a.formatted.toLowerCase().includes(q),
-    );
+  // Real forward geocoding via Mapbox, debounced. Replaces the old mock-list
+  // filter so users can find any real street/place in/around Agbor.
+  const [matches, setMatches] = useState<Address[]>([]);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setMatches([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const results = await searchPlaces(q);
+      if (cancelled) return;
+      setMatches(results);
+      setSearching(false);
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [query]);
 
   const pick = (addr: Address) => {
@@ -76,7 +93,9 @@ export function LocationSearchScreen() {
   const iconForType = (type: string): string =>
     type === 'home' ? '🏠' : type === 'work' ? '💼' : '⭐';
 
-  const nearby = MOCK_SEARCH_INDEX.slice(MOCK_SAVED_ADDRESSES.length + MOCK_RECENT_PLACES.length);
+  // Nearby suggestions removed — they were mock entries. Search now hits real
+  // Mapbox geocoding, and Saved/Recent below remain the curated shortcuts.
+  const nearby: Address[] = [];
 
   const fieldStyle = (active: boolean) => ({
     flexDirection: 'row' as const,
@@ -203,14 +222,23 @@ export function LocationSearchScreen() {
           />
           {matches.length === 0 ? (
             <View style={{ paddingVertical: spacing.xl, alignItems: 'center', gap: spacing.sm }}>
-              <Text variant="body" color="muted">No matches found</Text>
-              <Text variant="small" color="subtle">Try a different keyword</Text>
+              {searching ? (
+                <Text variant="body" color="muted">Searching…</Text>
+              ) : (
+                <>
+                  <Text variant="body" color="muted">No matches found</Text>
+                  <Text variant="small" color="subtle">Try a different keyword</Text>
+                </>
+              )}
             </View>
           ) : (
-            matches.map(addr => (
+            matches.map((addr, i) => (
               <ListItem
-                key={addr.label}
-                leading={<IconTile size={40} variant="card"><Text>📍</Text></IconTile>}
+                // Google can return two results with the same display name
+                // (e.g. multiple branches of "Am Sexy"). Use placeId when
+                // available + index fallback so React keys stay unique.
+                key={addr.placeId ?? `${addr.label}-${i}`}
+                leading={<IconTile size={44} variant="soft"><Text>📍</Text></IconTile>}
                 title={addr.label}
                 subtitle={addr.formatted}
                 onPress={() => pick(addr)}
@@ -225,7 +253,7 @@ export function LocationSearchScreen() {
           {MOCK_SAVED_ADDRESSES.map(addr => (
             <ListItem
               key={addr.id}
-              leading={<IconTile size={40} variant="card"><Text>{iconForType(addr.type)}</Text></IconTile>}
+              leading={<IconTile size={44} variant="soft"><Text>{iconForType(addr.type)}</Text></IconTile>}
               title={addr.label}
               subtitle={addr.formatted}
               onPress={() => pick(addr)}
@@ -237,7 +265,7 @@ export function LocationSearchScreen() {
           {MOCK_RECENT_PLACES.map(place => (
             <ListItem
               key={place.label}
-              leading={<IconTile size={40} variant="card"><Text>🕐</Text></IconTile>}
+              leading={<IconTile size={44} variant="soft"><Text>🕐</Text></IconTile>}
               title={place.label}
               subtitle={place.formatted}
               onPress={() => pick(place)}
@@ -251,7 +279,7 @@ export function LocationSearchScreen() {
               {nearby.map(place => (
                 <ListItem
                   key={place.label}
-                  leading={<IconTile size={40} variant="card"><Text>📍</Text></IconTile>}
+                  leading={<IconTile size={44} variant="soft"><Text>📍</Text></IconTile>}
                   title={place.label}
                   subtitle={place.formatted}
                   onPress={() => pick(place)}

@@ -35,10 +35,17 @@ function init(): void {
     // Browser persistence is the JS-SDK default (IndexedDB).
     _auth = getAuth(_app);
   } else {
-    // RN needs AsyncStorage so sessions survive app restarts.
-    _auth = initializeAuth(_app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
+    // RN needs AsyncStorage so sessions survive app restarts. If
+    // getReactNativePersistence ever stops resolving (Firebase v12 ESM/RN
+    // entry-point edge case), fall back to in-memory auth so the app still
+    // boots — the user just has to sign in again on each restart.
+    try {
+      _auth = initializeAuth(_app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } catch {
+      _auth = getAuth(_app);
+    }
   }
 }
 

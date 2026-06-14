@@ -3,30 +3,40 @@ import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Mapbox, { Camera, MapView } from '@rnmapbox/maps';
+import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { IconButton } from '../components/IconButton';
 import { useRide } from '../context/RideContext';
-import { AGBOR_CENTER, MAPBOX_PUBLIC_TOKEN, reverseGeocode } from '../services/mapbox';
+import { AGBOR_CENTER } from '../services/mapbox';
+import { reverseGeocode } from '../services/google';
 import type { LocationSearchMode, RootStackParamList } from '../navigation/types';
 
-Mapbox.setAccessToken(MAPBOX_PUBLIC_TOKEN);
+// Picker pattern with react-native-maps:
+//   - initialRegion (NOT controlled `region`) seeds the map once.
+//   - onRegionChangeComplete fires once the drag/zoom settles → we read the
+//     final centre and reverse-geocode it (debounced).
+// The previous Mapbox version passed `centerCoordinate` to a controlled
+// `<Camera>` *and* updated it from `onCameraChanged`, which created a tight
+// feedback loop and made the map shake/jitter while dragging. The
+// uncontrolled-region approach below eliminates that — the user drags, the
+// pin (a fixed overlay) stays centred, the map flows smoothly under it.
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'MapPicker'>;
+
+const DEFAULT_DELTA = { latitudeDelta: 0.015, longitudeDelta: 0.015 };
 
 export function MapPickerScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
-  const { colors, spacing, radius, mode } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const { setPickup, setDropoff, pickup, dropoff } = useRide();
 
   const mode_: LocationSearchMode = route.params?.mode ?? 'dropoff';
-  const seed =
-    mode_ === 'pickup' ? pickup?.point : dropoff?.point;
+  const seed = mode_ === 'pickup' ? pickup?.point : dropoff?.point;
 
   const [center, setCenter] = useState<{ longitude: number; latitude: number }>(
     seed ?? AGBOR_CENTER,
@@ -36,9 +46,8 @@ export function MapPickerScreen() {
   const [confirming, setConfirming] = useState(false);
   const labelTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const styleURL = mode === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street;
-
-  // Resolve label as user drags (debounced).
+  // Reverse-geocode the centre whenever it changes (debounced so dragging
+  // doesn't hammer Google).
   useEffect(() => {
     if (labelTimeoutRef.current) clearTimeout(labelTimeoutRef.current);
     setResolving(true);
@@ -52,14 +61,9 @@ export function MapPickerScreen() {
     };
   }, [center.latitude, center.longitude]);
 
-  const onRegionChange = useCallback(
-    (state: { properties?: { center?: number[] } }) => {
-      const c = state.properties?.center;
-      if (!c || c.length < 2) return;
-      setCenter({ longitude: c[0]!, latitude: c[1]! });
-    },
-    [],
-  );
+  const onRegionChangeComplete = useCallback((region: Region) => {
+    setCenter({ latitude: region.latitude, longitude: region.longitude });
+  }, []);
 
   const onConfirm = async () => {
     setConfirming(true);
@@ -78,25 +82,27 @@ export function MapPickerScreen() {
     }
   };
 
+  const initialRegion: Region = {
+    ...DEFAULT_DELTA,
+    latitude: (seed ?? AGBOR_CENTER).latitude,
+    longitude: (seed ?? AGBOR_CENTER).longitude,
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <MapView
         style={StyleSheet.absoluteFill}
-        styleURL={styleURL}
-        logoEnabled={false}
-        attributionEnabled
-        compassEnabled={false}
-        scaleBarEnabled={false}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={initialRegion}
+        onRegionChangeComplete={onRegionChangeComplete}
+        showsUserLocation
+        showsMyLocationButton={false}
+        showsCompass={false}
+        showsScale={false}
+        toolbarEnabled={false}
         pitchEnabled={false}
-        onCameraChanged={onRegionChange}
-      >
-        <Camera
-          centerCoordinate={[center.longitude, center.latitude]}
-          zoomLevel={15}
-          animationMode="easeTo"
-          animationDuration={0}
-        />
-      </MapView>
+        rotateEnabled={false}
+      />
 
       {/* Center pin (floats above the map, doesn't move with the map). */}
       <View pointerEvents="none" style={styles.pinContainer}>

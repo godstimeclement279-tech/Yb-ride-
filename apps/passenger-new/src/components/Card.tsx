@@ -29,8 +29,11 @@ export function Card({
           ? { backgroundColor: colors.surface }
           : { backgroundColor: colors.card };
 
+  // Selected outline uses the CTA colour (dark) per redesign — dark borders
+  // read as confident / premium in the reference. Yellow is reserved for
+  // brand accents.
   const selectedStyle: ViewStyle = selected
-    ? { borderWidth: 2, borderColor: colors.primary }
+    ? { borderWidth: 1.5, borderColor: colors.cta, backgroundColor: colors.card }
     : {};
 
   const containerStyle: ViewStyle = {

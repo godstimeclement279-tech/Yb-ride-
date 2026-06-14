@@ -24,7 +24,7 @@ export function PaymentMethodsScreen() {
 
       <Card variant="soft">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <IconTile size={48} variant="card">
+          <IconTile size={48} variant="soft">
             <Text style={{ fontSize: 22 }}>🏦</Text>
           </IconTile>
           <View style={{ flex: 1, gap: 4 }}>

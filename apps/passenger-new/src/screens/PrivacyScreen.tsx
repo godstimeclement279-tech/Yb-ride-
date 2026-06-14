@@ -20,7 +20,7 @@ export function PrivacyScreen() {
       <Card variant="soft" padded={false}>
         <Section title="Account">
           <ListItem
-            leading={<IconTile size={44} variant="card"><Text>🔑</Text></IconTile>}
+            leading={<IconTile size={44} variant="soft"><Text>🔑</Text></IconTile>}
             title="Change password"
             subtitle="Update your account password"
             showChevron
@@ -29,7 +29,7 @@ export function PrivacyScreen() {
           />
           <Divider inset={spacing.base + 44 + spacing.md} />
           <ListItem
-            leading={<IconTile size={44} variant="card"><Text>📱</Text></IconTile>}
+            leading={<IconTile size={44} variant="soft"><Text>📱</Text></IconTile>}
             title="2-step verification"
             subtitle="Add SMS as a second factor"
             showChevron
@@ -42,7 +42,7 @@ export function PrivacyScreen() {
       <Card variant="soft" padded={false}>
         <Section title="Data">
           <ListItem
-            leading={<IconTile size={44} variant="card"><Text>📥</Text></IconTile>}
+            leading={<IconTile size={44} variant="soft"><Text>📥</Text></IconTile>}
             title="Download my data"
             subtitle="Receive a copy of your trips and account"
             showChevron
@@ -51,7 +51,7 @@ export function PrivacyScreen() {
           />
           <Divider inset={spacing.base + 44 + spacing.md} />
           <ListItem
-            leading={<IconTile size={44} variant="card"><Text>🗑</Text></IconTile>}
+            leading={<IconTile size={44} variant="soft"><Text>🗑</Text></IconTile>}
             title="Delete account"
             subtitle="Permanently remove your account and data"
             showChevron

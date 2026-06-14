@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 import { Avatar } from '../components/Avatar';
 import { useTheme } from '../theme/ThemeProvider';
 import { usePassenger } from '../context/AuthContext';
+import { updatePassengerProfile } from '../services/firebase/passengerAuthService';
 
 export function EditProfileScreen() {
   const navigation = useNavigation();
@@ -18,6 +19,31 @@ export function EditProfileScreen() {
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone);
   const [email, setEmail] = useState(user.email);
+  const [saving, setSaving] = useState(false);
+
+  async function onSave() {
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim();
+    if (!trimmedName) {
+      Alert.alert('Name required', 'Please enter your name.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updatePassengerProfile(user.id, {
+        name: trimmedName,
+        phone: trimmedPhone,
+        email: trimmedEmail,
+      });
+      Alert.alert('Saved', 'Profile updated.');
+      navigation.goBack();
+    } catch {
+      Alert.alert('Could not save', 'Try again in a moment.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const fieldBox = {
     backgroundColor: colors.surface,
@@ -73,12 +99,10 @@ export function EditProfileScreen() {
       </Card>
 
       <Button
-        label="Save"
+        label={saving ? 'Saving…' : 'Save'}
         size="lg"
-        onPress={() => {
-          Alert.alert('Saved', 'Profile updated.');
-          navigation.goBack();
-        }}
+        disabled={saving}
+        onPress={onSave}
       />
       </Screen>
     </KeyboardAvoidingView>

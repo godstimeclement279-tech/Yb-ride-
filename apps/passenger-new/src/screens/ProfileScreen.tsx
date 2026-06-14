@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,8 +13,8 @@ import { SectionLabel } from '../components/SectionLabel';
 import { Divider } from '../components/Divider';
 import { useTheme } from '../theme/ThemeProvider';
 import { usePassenger, useAuth } from '../context/AuthContext';
-import { Alert } from 'react-native';
 import { Button } from '../components/Button';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -23,21 +23,13 @@ export function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const user = usePassenger();
   const { signOut } = useAuth();
-  const { spacing, colors } = useTheme();
+  const { spacing } = useTheme();
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
 
-  const onSignOut = () => {
-    Alert.alert('Sign out?', 'You will need to sign in again to book rides.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          signOut().catch(() => {
-            Alert.alert('Could not sign out', 'Try again in a moment.');
-          });
-        },
-      },
-    ]);
+  const doSignOut = () => {
+    setSignOutOpen(false);
+    signOut().catch(() => setSignOutError(true));
   };
 
   return (
@@ -53,7 +45,7 @@ export function ProfileScreen() {
         <ListItem
           title=""
           leading={
-            <IconTile size={40} variant="card" rounded="tile">
+            <IconTile size={40} variant="soft" rounded="tile">
               <Text>✎</Text>
             </IconTile>
           }
@@ -83,7 +75,7 @@ export function ProfileScreen() {
       <SectionLabel label="Account" />
       <Card variant="soft" padded={false}>
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>🏠</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>🏠</Text></IconTile>}
           title="Saved Addresses"
           subtitle="Home, Work, and more"
           showChevron
@@ -92,7 +84,7 @@ export function ProfileScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>🏦</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>🏦</Text></IconTile>}
           title="Payment Methods"
           subtitle="Bank Transfer · Paystack"
           showChevron
@@ -101,7 +93,7 @@ export function ProfileScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>🏷</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>🏷</Text></IconTile>}
           title="Promo Codes"
           subtitle="3 available rewards"
           showChevron
@@ -113,7 +105,7 @@ export function ProfileScreen() {
       <SectionLabel label="Preferences" />
       <Card variant="soft" padded={false}>
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>🕐</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>🕐</Text></IconTile>}
           title="Ride History"
           subtitle="View past trips and receipts"
           showChevron
@@ -122,7 +114,7 @@ export function ProfileScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>🔔</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>🔔</Text></IconTile>}
           title="Notifications"
           subtitle="Manage alerts and updates"
           showChevron
@@ -131,7 +123,7 @@ export function ProfileScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>🛡</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>🛡</Text></IconTile>}
           title="Privacy & Security"
           subtitle="Data and account protection"
           showChevron
@@ -143,7 +135,7 @@ export function ProfileScreen() {
       <SectionLabel label="Support" />
       <Card variant="soft" padded={false}>
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>?</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>?</Text></IconTile>}
           title="Help Center"
           subtitle="FAQ and contact support"
           showChevron
@@ -152,7 +144,7 @@ export function ProfileScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>📄</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>📄</Text></IconTile>}
           title="Legal"
           subtitle="Terms of service and policies"
           showChevron
@@ -161,7 +153,7 @@ export function ProfileScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile variant="card" size={44}><Text>⚙</Text></IconTile>}
+          leading={<IconTile variant="soft" size={44}><Text>⚙</Text></IconTile>}
           title="Settings"
           subtitle="Theme and preferences"
           showChevron
@@ -170,7 +162,27 @@ export function ProfileScreen() {
         />
       </Card>
 
-      <Button label="Sign out" variant="danger" onPress={onSignOut} />
+      <Button label="Sign out" variant="danger" onPress={() => setSignOutOpen(true)} />
+
+      <ConfirmDialog
+        visible={signOutOpen}
+        title="Sign out?"
+        message="You will need to sign in again to book rides."
+        confirmLabel="Sign out"
+        confirmTone="danger"
+        onConfirm={doSignOut}
+        onCancel={() => setSignOutOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={signOutError}
+        title="Could not sign out"
+        message="Try again in a moment."
+        confirmLabel="OK"
+        cancelLabel=""
+        onConfirm={() => setSignOutError(false)}
+        onCancel={() => setSignOutError(false)}
+      />
 
       <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
         <Text variant="caption" color="subtle">

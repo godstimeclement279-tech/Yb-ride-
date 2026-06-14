@@ -1,23 +1,22 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
 import { FilterChip } from '../components/FilterChip';
-import { SectionLabel } from '../components/SectionLabel';
 import { Badge } from '../components/Badge';
 import { Header } from '../components/Header';
 import { Divider } from '../components/Divider';
-import { IconTile } from '../components/IconTile';
 import { useTheme } from '../theme/ThemeProvider';
-import { MOCK_PAST_BOOKINGS } from '../data/mockData';
+import { usePassenger } from '../context/AuthContext';
+import { subscribePassengerBookings } from '../services/firebase/bookingsService';
 import { formatNaira, type Booking } from '@yb/shared';
 import type { RootStackParamList } from '../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-type Filter = 'all' | 'business' | 'personal' | 'scheduled';
+type Filter = 'all' | 'completed' | 'cancelled';
 
 const dayMs = 1000 * 60 * 60 * 24;
 
@@ -40,13 +39,15 @@ export function HistoryScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing } = useTheme();
   const [filter, setFilter] = useState<Filter>('all');
+  const user = usePassenger();
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
 
-  const allBookings = MOCK_PAST_BOOKINGS;
+  useEffect(() => subscribePassengerBookings(user.id, setAllBookings), [user.id]);
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return allBookings;
-    // Tag field not on Booking yet; non-"all" buckets show empty until backend tags trips.
-    return [] as Booking[];
+    const sorted = [...allBookings].sort((a, b) => b.createdAt - a.createdAt);
+    if (filter === 'all') return sorted;
+    return sorted.filter((b) => b.status === filter);
   }, [allBookings, filter]);
 
   const groups = useMemo(() => {
@@ -82,9 +83,8 @@ export function HistoryScreen() {
           contentContainerStyle={{ gap: spacing.sm }}
         >
           <FilterChip label="All Trips" active={filter === 'all'} onPress={() => setFilter('all')} />
-          <FilterChip label="Business" active={filter === 'business'} onPress={() => setFilter('business')} />
-          <FilterChip label="Personal" active={filter === 'personal'} onPress={() => setFilter('personal')} />
-          <FilterChip label="Scheduled" active={filter === 'scheduled'} onPress={() => setFilter('scheduled')} />
+          <FilterChip label="Completed" active={filter === 'completed'} onPress={() => setFilter('completed')} />
+          <FilterChip label="Cancelled" active={filter === 'cancelled'} onPress={() => setFilter('cancelled')} />
         </ScrollView>
       </View>
 

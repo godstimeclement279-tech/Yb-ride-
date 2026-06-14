@@ -10,25 +10,53 @@ module.exports = () => ({
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'ybride',
-    userInterfaceStyle: 'automatic',
-    newArchEnabled: true,
+    userInterfaceStyle: 'light',
+    newArchEnabled: false,
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#1E3A8A',
+      backgroundColor: '#FACC15',
     },
     ios: {
       supportsTablet: false,
       bundleIdentifier: 'com.ybride.passenger',
+      // Sign in with Apple capability — required by App Store when the app
+      // offers any third-party social sign-in. expo-apple-authentication's
+      // config plugin handles entitlements, but ios.usesAppleSignIn here is
+      // belt-and-braces so Expo prebuild always adds the capability.
+      usesAppleSignIn: true,
+      // Google Maps iOS SDK key — same project + key as Android. Needs
+      // "Maps SDK for iOS" both enabled in the project AND ticked in the
+      // key's API restrictions allowlist (Cloud Console → Credentials).
+      config: {
+        googleMapsApiKey: 'AIzaSyB4diRGz6N5lrT3Zu_IsgOgtx9sfcc6VI0',
+      },
     },
     android: {
       package: 'com.ybride.passenger',
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+      // Firebase Android client config — required for FCM push tokens.
+      // The file contains both passenger + driver entries since both Android
+      // apps live in the same Firebase project; each build picks its own
+      // entry by matching package name. Per-environment, NOT a secret, but
+      // gitignored to keep multiple env configs out of one branch.
+      googleServicesFile: './google-services.json',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#1E3A8A',
+        backgroundColor: '#FACC15',
       },
+      // Google Maps Android SDK key — drives react-native-maps tile rendering.
+      // Same project as the Places/Geocoding key; needs "Maps SDK for Android"
+      // enabled on the same key in Google Cloud Console.
+      config: {
+        googleMaps: {
+          apiKey: 'AIzaSyB4diRGz6N5lrT3Zu_IsgOgtx9sfcc6VI0',
+        },
+      },
+      // Foreground-only location: passenger needs GPS while booking but never
+      // when the app is backgrounded (driver app handles background).
+      permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'],
     },
     web: {
       bundler: 'metro',
@@ -36,6 +64,20 @@ module.exports = () => ({
       favicon: './assets/favicon.png',
     },
     plugins: [
+      [
+        'expo-build-properties',
+        {
+          android: {
+            // Disable ProGuard + resource shrinker to rule out minification
+            // as the source of cold-boot crashes on Android EAS builds.
+            enableProguardInReleaseBuilds: false,
+            enableShrinkResourcesInReleaseBuilds: false,
+            // Allow plain HTTP for local Firebase emulators / Paystack test
+            // callbacks; production endpoints are HTTPS regardless.
+            usesCleartextTraffic: true,
+          },
+        },
+      ],
       [
         '@rnmapbox/maps',
         {
@@ -45,18 +87,25 @@ module.exports = () => ({
       [
         'expo-notifications',
         {
-          color: '#1E3A8A',
+          color: '#FACC15',
           // Drop a custom WAV under ./assets/sounds and add it to `sounds: []`
           // below to override the default Android channel sound.
           sounds: [],
         },
       ],
+      [
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'YB Ride uses your location to set your pickup and show drivers nearby.',
+        },
+      ],
     ],
     extra: {
       eas: {
-        projectId: '388b16e3-b2cd-40f6-9012-bb4905556202',
+        projectId: '1ebcd54d-e69c-4fdd-9173-a54b45d86988',
       },
     },
-    owner: 'geetees',
+    owner: 'ybride',
   },
 });

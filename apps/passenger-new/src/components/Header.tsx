@@ -37,7 +37,7 @@ export function Header({ title, subtitle, back, trailing, onBackPress }: HeaderP
         </Pressable>
       )}
       <View style={{ flex: 1 }}>
-        <Text variant="h3">{title}</Text>
+        <Text variant="h2">{title}</Text>
         {subtitle && (
           <Text variant="small" color="muted">
             {subtitle}

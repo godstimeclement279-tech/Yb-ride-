@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React from 'react';
+import { View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
-import { isOnboardingComplete } from '../services/onboardingFlag';
+import { RideProvider } from '../context/RideContext';
 import { MainTabs } from './MainTabs';
 import type { AuthStackParamList, RootStackParamList } from './types';
 
+import { BrandSplashScreen } from '../screens/BrandSplashScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { SignupScreen } from '../screens/SignupScreen';
+import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { LocationSearchScreen } from '../screens/LocationSearchScreen';
 import { MapPickerScreen } from '../screens/MapPickerScreen';
 import { FareBreakdownScreen } from '../screens/FareBreakdownScreen';
@@ -35,13 +37,6 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 export function RootNavigator() {
   const theme = useTheme();
   const { status } = useAuth();
-
-  // Resolve the onboarding flag once on mount. Until it lands we keep the
-  // spinner up — same UX as a still-loading auth session.
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
-  useEffect(() => {
-    isOnboardingComplete().then(setOnboardingDone);
-  }, []);
 
   const navTheme =
     theme.mode === 'dark'
@@ -68,69 +63,68 @@ export function RootNavigator() {
           },
         };
 
-  // While the persisted Firebase Auth session AND the onboarding flag are
-  // still resolving on first render, show a centered spinner — keeps us
-  // from flashing Login to an already-signed-in user, or skipping Onboarding
-  // for a first-launch user.
-  if (status === 'loading' || onboardingDone === null) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator color={theme.colors.primary} />
-      </View>
-    );
+  // While the persisted Firebase Auth session is still resolving, show a
+  // yellow brand-color background — no spinner, no flash. BrandSplashScreen
+  // then handles the visible intro + onboarding/login routing.
+  if (status === 'loading') {
+    return <View style={{ flex: 1, backgroundColor: '#FACC15' }} />;
   }
 
   return (
     <NavigationContainer theme={navTheme}>
       {status === 'signed_in' ? (
-        <RootStack.Navigator
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.colors.background },
-          }}
-        >
-          <RootStack.Screen name="Main" component={MainTabs} />
-          <RootStack.Screen
-            name="LocationSearch"
-            component={LocationSearchScreen}
-            options={{ presentation: 'modal' }}
-          />
-          <RootStack.Screen
-            name="MapPicker"
-            component={MapPickerScreen}
-            options={{ presentation: 'modal' }}
-          />
-          <RootStack.Screen name="FareBreakdown" component={FareBreakdownScreen} />
-          <RootStack.Screen name="Payment" component={PaymentScreen} />
-          <RootStack.Screen name="TripTracking" component={TripTrackingScreen} />
-          <RootStack.Screen name="Rating" component={RatingScreen} />
-          <RootStack.Screen name="Receipt" component={ReceiptScreen} />
-          <RootStack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
-          <RootStack.Screen
-            name="AddAddress"
-            component={AddAddressScreen}
-            options={{ presentation: 'modal' }}
-          />
-          <RootStack.Screen name="PromoCodes" component={PromoCodesScreen} />
-          <RootStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
-          <RootStack.Screen name="Notifications" component={NotificationsScreen} />
-          <RootStack.Screen name="EditProfile" component={EditProfileScreen} />
-          <RootStack.Screen name="HelpCenter" component={HelpCenterScreen} />
-          <RootStack.Screen name="Privacy" component={PrivacyScreen} />
-          <RootStack.Screen name="Legal" component={LegalScreen} />
-          <RootStack.Screen name="Settings" component={SettingsScreen} />
-        </RootStack.Navigator>
+        <RideProvider>
+          <RootStack.Navigator
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.background },
+            }}
+          >
+            <RootStack.Screen name="Main" component={MainTabs} />
+            <RootStack.Screen
+              name="LocationSearch"
+              component={LocationSearchScreen}
+              options={{ presentation: 'modal' }}
+            />
+            <RootStack.Screen
+              name="MapPicker"
+              component={MapPickerScreen}
+              options={{ presentation: 'modal' }}
+            />
+            <RootStack.Screen name="FareBreakdown" component={FareBreakdownScreen} />
+            <RootStack.Screen name="Payment" component={PaymentScreen} />
+            <RootStack.Screen name="TripTracking" component={TripTrackingScreen} />
+            <RootStack.Screen name="Rating" component={RatingScreen} />
+            <RootStack.Screen name="Receipt" component={ReceiptScreen} />
+            <RootStack.Screen name="SavedAddresses" component={SavedAddressesScreen} />
+            <RootStack.Screen
+              name="AddAddress"
+              component={AddAddressScreen}
+              options={{ presentation: 'modal' }}
+            />
+            <RootStack.Screen name="PromoCodes" component={PromoCodesScreen} />
+            <RootStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+            <RootStack.Screen name="Notifications" component={NotificationsScreen} />
+            <RootStack.Screen name="EditProfile" component={EditProfileScreen} />
+            <RootStack.Screen name="HelpCenter" component={HelpCenterScreen} />
+            <RootStack.Screen name="Privacy" component={PrivacyScreen} />
+            <RootStack.Screen name="Legal" component={LegalScreen} />
+            <RootStack.Screen name="Settings" component={SettingsScreen} />
+          </RootStack.Navigator>
+        </RideProvider>
       ) : (
         <AuthStack.Navigator
-          initialRouteName={onboardingDone ? 'Login' : 'Onboarding'}
+          initialRouteName="BrandSplash"
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: theme.colors.background },
           }}
         >
+          <AuthStack.Screen name="BrandSplash" component={BrandSplashScreen} />
           <AuthStack.Screen name="Onboarding" component={OnboardingScreen} />
           <AuthStack.Screen name="Login" component={LoginScreen} />
           <AuthStack.Screen name="Signup" component={SignupScreen} />
+          <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         </AuthStack.Navigator>
       )}
     </NavigationContainer>

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -37,10 +37,23 @@ export function PaystackCheckout({
 }: PaystackCheckoutProps) {
   const { colors, spacing } = useTheme();
 
-  const html = useMemo(() => {
-    if (!args) return '';
-    return buildPaystackCheckoutHtml(args);
-  }, [args]);
+  // Snapshot the checkout HTML exactly once, when the modal opens. The parent
+  // (PaymentScreen) re-renders every second from its countdown timer, which
+  // recreates the inline `args` object and a fresh Date.now() ref — if the
+  // WebView `source` tracked that, it would reload every second and the
+  // Paystack iframe would never survive long enough to render ("Loading
+  // Paystack…" forever). Freezing on open makes the source stable.
+  const [html, setHtml] = useState('');
+  const argsRef = useRef<PaystackCheckoutArgs | undefined>(args);
+  argsRef.current = args;
+
+  useEffect(() => {
+    if (visible && argsRef.current) {
+      setHtml(buildPaystackCheckoutHtml(argsRef.current));
+    } else if (!visible) {
+      setHtml('');
+    }
+  }, [visible]);
 
   return (
     <Modal
@@ -85,6 +98,19 @@ export function PaystackCheckout({
             javaScriptEnabled
             domStorageEnabled
             mixedContentMode="always"
+            thirdPartyCookiesEnabled
+            // Force popups to open in the same WebView. Paystack's inline-v2
+            // checkout sometimes triggers window.open() for the bank-transfer
+            // modal; without this Android blocks it silently → spinner forever.
+            setSupportMultipleWindows={false}
+            // Surface native WebView load failures so we know if it never
+            // even started fetching the page.
+            onError={(event) => {
+              onResult({ type: 'error', message: 'WebView error: ' + (event.nativeEvent?.description ?? 'unknown') });
+            }}
+            onHttpError={(event) => {
+              onResult({ type: 'error', message: 'HTTP ' + event.nativeEvent?.statusCode + ' loading payment page' });
+            }}
             // iOS in-app browser features needed by Paystack popup.
             allowsInlineMediaPlayback
             // Reduce flicker — show a soft background while loading.

@@ -4,7 +4,9 @@ import { useTheme } from '../theme/ThemeProvider';
 
 interface IconTileProps {
   size?: number;
-  variant?: 'card' | 'surface' | 'dark' | 'primary' | 'transparent';
+  // 'soft' = the reference-style rounded-gray-square tile: surface bg, NO
+  // border, dark icon. Use this for list-row leading icons.
+  variant?: 'card' | 'surface' | 'soft' | 'dark' | 'primary' | 'transparent';
   rounded?: 'tile' | 'pill';
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -24,6 +26,7 @@ export function IconTile({
   const bg = {
     card: colors.card,
     surface: colors.surface,
+    soft: colors.surface,
     dark: colors.text,
     primary: colors.primary,
     transparent: 'transparent',

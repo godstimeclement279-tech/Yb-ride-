@@ -18,7 +18,7 @@ export function LegalScreen() {
 
       <Card variant="soft" padded={false}>
         <ListItem
-          leading={<IconTile size={44} variant="card"><Text>📄</Text></IconTile>}
+          leading={<IconTile size={44} variant="soft"><Text>📄</Text></IconTile>}
           title="Terms of Service"
           subtitle="Rules for using YB Ride"
           showChevron
@@ -27,7 +27,7 @@ export function LegalScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile size={44} variant="card"><Text>🛡</Text></IconTile>}
+          leading={<IconTile size={44} variant="soft"><Text>🛡</Text></IconTile>}
           title="Privacy Policy"
           subtitle="How we handle your data"
           showChevron
@@ -36,7 +36,7 @@ export function LegalScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile size={44} variant="card"><Text>♿</Text></IconTile>}
+          leading={<IconTile size={44} variant="soft"><Text>♿</Text></IconTile>}
           title="Accessibility"
           subtitle="Our commitment to all riders"
           showChevron
@@ -45,7 +45,7 @@ export function LegalScreen() {
         />
         <Divider inset={spacing.base + 44 + spacing.md} />
         <ListItem
-          leading={<IconTile size={44} variant="card"><Text>🇳🇬</Text></IconTile>}
+          leading={<IconTile size={44} variant="soft"><Text>🇳🇬</Text></IconTile>}
           title="Operating regions"
           subtitle="Currently serving Agbor, Delta State"
           showChevron

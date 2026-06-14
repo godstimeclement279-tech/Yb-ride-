@@ -9,7 +9,7 @@ import {
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from './Text';
 
-type Variant = 'primary' | 'dark' | 'secondary' | 'ghost' | 'danger' | 'success' | 'soft';
+type Variant = 'primary' | 'dark' | 'brand' | 'secondary' | 'ghost' | 'danger' | 'success' | 'soft';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> {
@@ -44,14 +44,18 @@ export function Button({
     lg: { paddingVertical: spacing.base, paddingHorizontal: spacing.xl, minHeight: 60 },
   }[size];
 
+  // primary = dark CTA per redesign (Reading B). Yellow is reserved for
+  // brand accents (logo, splash, status pills) and never for buttons.
+  // 'brand' kept as an escape hatch for the rare yellow-button case.
   const palette = {
-    primary: { bg: colors.primary, text: colors.textInverse, border: colors.primary },
-    dark: { bg: colors.text, text: colors.background, border: colors.text },
-    secondary: { bg: colors.surface, text: colors.text, border: colors.border },
-    soft: { bg: colors.primarySoft, text: colors.primary, border: colors.primarySoft },
+    primary: { bg: colors.cta, text: colors.ctaText, border: colors.cta },
+    dark: { bg: colors.cta, text: colors.ctaText, border: colors.cta },
+    brand: { bg: colors.primary, text: colors.textInverse, border: colors.primary },
+    secondary: { bg: colors.surface, text: colors.text, border: colors.surface },
+    soft: { bg: colors.surface, text: colors.text, border: colors.surface },
     ghost: { bg: 'transparent', text: colors.text, border: 'transparent' },
-    danger: { bg: colors.error, text: colors.textInverse, border: colors.error },
-    success: { bg: colors.success, text: colors.textInverse, border: colors.success },
+    danger: { bg: colors.error, text: '#FFFFFF', border: colors.error },
+    success: { bg: colors.success, text: '#FFFFFF', border: colors.success },
   }[variant];
 
   const radiusValue = rounded === 'pill' ? radius.pill : radius.md;

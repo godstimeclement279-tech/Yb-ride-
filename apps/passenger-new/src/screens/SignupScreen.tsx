@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { TextInput } from '../components/TextInput';
@@ -12,15 +21,20 @@ import type { AuthStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
 
+const BRAND_YELLOW = '#FACC15';
+const INK = '#0A0A0A';
+
 export function SignupScreen() {
   const navigation = useNavigation<Nav>();
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const { signUp, errorMessage } = useAuth();
 
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async () => {
@@ -32,14 +46,22 @@ export function SignupScreen() {
       Alert.alert('Weak password', 'Use at least 6 characters.');
       return;
     }
+    if (!agreed) {
+      Alert.alert('Terms required', 'You must accept the Terms of Service and Privacy Policy.');
+      return;
+    }
     setSubmitting(true);
     try {
       await signUp({ email, password, name, phone });
     } catch {
-      /* error already in AuthContext.errorMessage */
+      /* errorMessage on AuthContext */
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const comingSoon = (provider: string) => {
+    Alert.alert(`${provider} sign-up`, 'Coming soon. Use email + password for now.');
   };
 
   return (
@@ -51,15 +73,26 @@ export function SignupScreen() {
         <ScrollView
           contentContainerStyle={{
             padding: spacing.lg,
-            gap: spacing.lg,
+            paddingTop: spacing.lg,
             flexGrow: 1,
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ marginTop: spacing.xl, gap: spacing.xs }}>
-            <Text variant="h1">Create account</Text>
+          {/* Brand mark — small, top-left */}
+          <Image
+            source={require('../../assets/yb-logo.png')}
+            style={{ width: 64, height: 64, marginBottom: spacing.lg }}
+            resizeMode="contain"
+          />
+
+
+          {/* Headline */}
+          <View style={{ gap: 6, marginBottom: spacing.xl }}>
+            <Text variant="h1" style={{ fontSize: 30 }}>
+              Create Account
+            </Text>
             <Text variant="body" color="muted">
-              Sign up to book your first ride.
+              Join YB Ride — <Text variant="bodyStrong">Movement Made Easy</Text>
             </Text>
           </View>
 
@@ -69,6 +102,7 @@ export function SignupScreen() {
                 backgroundColor: colors.errorSoft,
                 padding: spacing.md,
                 borderRadius: 12,
+                marginBottom: spacing.md,
               }}
             >
               <Text variant="small" color="error">
@@ -79,56 +113,145 @@ export function SignupScreen() {
 
           <View style={{ gap: spacing.md }}>
             <TextInput
-              label="Full name"
+              label="Full Name"
               value={name}
               onChangeText={setName}
-              placeholder="Chinedu Okafor"
+              placeholder="Enter your full name"
               autoCapitalize="words"
               textContentType="name"
+              leadingIcon={
+                <Ionicons name="person-outline" size={20} color={colors.textMuted} />
+              }
             />
             <TextInput
-              label="Phone"
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="+2348012345678"
-              keyboardType="phone-pad"
-              textContentType="telephoneNumber"
-            />
-            <TextInput
-              label="Email"
+              label="Email Address"
               value={email}
               onChangeText={setEmail}
-              placeholder="you@email.com"
+              placeholder="name@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="emailAddress"
+              leadingIcon={
+                <Ionicons name="mail-outline" size={20} color={colors.textMuted} />
+              }
+            />
+            <TextInput
+              label="Phone Number"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+234 800 000 0000"
+              keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              leadingIcon={
+                <Ionicons name="phone-portrait-outline" size={20} color={colors.textMuted} />
+              }
             />
             <TextInput
               label="Password"
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 6 characters"
-              secureTextEntry
+              placeholder="Create a strong password"
+              secureTextEntry={!showPassword}
               autoCapitalize="none"
               textContentType="newPassword"
+              leadingIcon={
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
+              }
+              trailingIcon={
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color={colors.textMuted}
+                />
+              }
+              onTrailingPress={() => setShowPassword(v => !v)}
             />
           </View>
 
-          <Button
-            label={submitting ? 'Creating account…' : 'Create account'}
-            onPress={onSubmit}
-            disabled={submitting}
-            loading={submitting}
-            size="lg"
-          />
+          {/* Terms checkbox */}
+          <Pressable
+            onPress={() => setAgreed(v => !v)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: spacing.sm,
+              marginTop: spacing.lg,
+            }}
+            hitSlop={10}
+          >
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: agreed ? BRAND_YELLOW : colors.background,
+                borderWidth: agreed ? 0 : 1.5,
+                borderColor: colors.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 2,
+              }}
+            >
+              {agreed && <Ionicons name="checkmark" size={14} color={INK} />}
+            </View>
+            <Text variant="small" color="muted" style={{ flex: 1, lineHeight: 20 }}>
+              By signing up, you agree to our{' '}
+              <Text variant="smallStrong">Terms of Service</Text> and{' '}
+              <Text variant="smallStrong">Privacy Policy</Text>.
+            </Text>
+          </Pressable>
 
+          {/* Primary CTA */}
+          <View style={{ marginTop: spacing.lg }}>
+            <Button
+              label={submitting ? 'Creating account…' : 'Create Account'}
+              onPress={onSubmit}
+              disabled={submitting}
+              loading={submitting}
+              size="lg"
+            />
+          </View>
+
+          {/* OR divider */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.md,
+              marginVertical: spacing.lg,
+            }}
+          >
+            <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+            <Text variant="smallStrong" color="muted">
+              OR
+            </Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+          </View>
+
+          {/* Social row */}
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            <SocialButton
+              label="Google"
+              icon={<Ionicons name="logo-google" size={20} color={colors.text} />}
+              onPress={() => comingSoon('Google')}
+              radius={radius.pill}
+            />
+            <SocialButton
+              label="Apple"
+              icon={<Ionicons name="logo-apple" size={20} color={colors.text} />}
+              onPress={() => comingSoon('Apple')}
+              radius={radius.pill}
+            />
+          </View>
+
+          {/* Footer link */}
           <View
             style={{
               flexDirection: 'row',
               justifyContent: 'center',
               gap: spacing.xs,
-              marginTop: spacing.md,
+              marginTop: spacing.xl,
             }}
           >
             <Text variant="small" color="muted">
@@ -139,11 +262,45 @@ export function SignupScreen() {
               color="primary"
               onPress={() => navigation.navigate('Login')}
             >
-              Sign in
+              Log In
             </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function SocialButton({
+  label,
+  icon,
+  onPress,
+  radius,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+  radius: number;
+}) {
+  const { colors, spacing } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.md,
+        borderRadius: radius,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: pressed ? colors.surface : colors.background,
+      })}
+    >
+      {icon}
+      <Text variant="bodyStrong">{label}</Text>
+    </Pressable>
   );
 }

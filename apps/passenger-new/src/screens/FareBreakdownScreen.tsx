@@ -8,7 +8,6 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Divider } from '../components/Divider';
 import { Header } from '../components/Header';
-import { Badge } from '../components/Badge';
 import { IconTile } from '../components/IconTile';
 import { RouteTimeline } from '../components/RouteTimeline';
 import { useTheme } from '../theme/ThemeProvider';
@@ -104,7 +103,7 @@ export function FareBreakdownScreen() {
         </View>
       </Card>
 
-      <Text variant="h4" style={{ textAlign: 'center', marginTop: spacing.sm }}>
+      <Text variant="h2" style={{ marginTop: spacing.sm }}>
         Price Details
       </Text>
 
@@ -134,13 +133,13 @@ export function FareBreakdownScreen() {
         </View>
       </Card>
 
-      <Text variant="h4" style={{ textAlign: 'center', marginTop: spacing.sm }}>
+      <Text variant="h2" style={{ marginTop: spacing.sm }}>
         Payment Method
       </Text>
 
       <Card variant="soft">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <IconTile size={40} variant="card">
+          <IconTile size={44} variant="soft">
             <Text>🏦</Text>
           </IconTile>
           <View style={{ flex: 1 }}>

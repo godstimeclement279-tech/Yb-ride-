@@ -23,7 +23,7 @@ import {
   MOCK_PROMOS,
   MOCK_ZONES,
 } from '../data/mockData';
-import { usePassenger } from './AuthContext';
+import { useAuth } from './AuthContext';
 import { subscribeCarTypes } from '../services/firebase/carTypesService';
 import { subscribeZones } from '../services/firebase/zonesService';
 import { subscribePromos } from '../services/firebase/promosService';
@@ -31,6 +31,8 @@ import {
   createBooking as fbCreateBooking,
   updateBooking as fbUpdateBooking,
 } from '../services/firebase/bookingsService';
+import { getCurrentDeviceLocation } from '../services/deviceLocation';
+import { reverseGeocode } from '../services/google';
 
 interface RideContextValue {
   // Selection
@@ -88,7 +90,12 @@ function applyPromoToFare(
 }
 
 export function RideProvider({ children }: PropsWithChildren) {
-  const user = usePassenger();
+  // Use useAuth (returns nullable user) instead of usePassenger (throws on
+  // null). On sign-out, React commits the user=null state before the
+  // RootNavigator conditional re-renders to swap RideProvider out, leaving
+  // a transient render where this provider is still mounted with user=null.
+  // Throwing here turned that transient state into a Render crash.
+  const { user } = useAuth();
   const [pickup, setPickup] = useState<Address | null>(MOCK_CURRENT_LOCATION);
   const [dropoff, setDropoff] = useState<Address | null>(null);
   const [isRoundTrip, setIsRoundTrip] = useState(false);
@@ -101,6 +108,52 @@ export function RideProvider({ children }: PropsWithChildren) {
   const [zones, setZones] = useState<Zone[]>(MOCK_ZONES);
   const [carType, setCarType] = useState<CarType | null>(MOCK_CAR_TYPES[0] ?? null);
   const [promos, setPromos] = useState<Promo[]>(MOCK_PROMOS);
+
+  // Replace the mock pickup with the device's real GPS on first signed-in
+  // mount. Permission denial or a missing native module leaves the mock in
+  // place — no crash, no blocking spinner. Only runs while pickup is the
+  // seeded mock so manually-set pickups aren't overwritten.
+  //
+  // Two-stage so a slow reverse-geocode doesn't block the pin from moving:
+  //   1) getCurrentDeviceLocation → setPickup({label:'Current location', point})
+  //      so the green pin + MapPicker centre snap to the real spot instantly.
+  //   2) reverseGeocode runs in background. When/if it returns, swap in the
+  //      real street label without touching coords. If the geocode hangs on
+  //      a flaky link, the user still has working coords + a generic label.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const coords = await getCurrentDeviceLocation();
+      if (cancelled || !coords) return;
+      setPickup((prev) =>
+        prev && prev !== MOCK_CURRENT_LOCATION
+          ? prev
+          : {
+              label: 'Current location',
+              formatted: '',
+              point: { latitude: coords.latitude, longitude: coords.longitude },
+            },
+      );
+      reverseGeocode(coords.longitude, coords.latitude).then((r) => {
+        if (cancelled) return;
+        setPickup((prev) => {
+          if (!prev) return prev;
+          // Only patch the label if the user hasn't moved the pickup elsewhere.
+          if (
+            prev.point.latitude !== coords.latitude ||
+            prev.point.longitude !== coords.longitude
+          ) {
+            return prev;
+          }
+          return { ...prev, label: r.label, formatted: r.formatted };
+        });
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     const unsubA = subscribeCarTypes(types => {
@@ -170,7 +223,7 @@ export function RideProvider({ children }: PropsWithChildren) {
   }, [carTypes]);
 
   const createBooking = useCallback(async (): Promise<Booking | null> => {
-    if (!pickup || !dropoff || !carType || !fare) return null;
+    if (!user || !pickup || !dropoff || !carType || !fare) return null;
     const data: Omit<Booking, 'id'> = {
       passengerId: user.id,
       pickup,
@@ -186,7 +239,7 @@ export function RideProvider({ children }: PropsWithChildren) {
     const booking: Booking = { id, ...data };
     setBookings(prev => ({ ...prev, [id]: booking }));
     return booking;
-  }, [pickup, dropoff, carType, fare, isRoundTrip, user.id, paymentMethod]);
+  }, [pickup, dropoff, carType, fare, isRoundTrip, user?.id, paymentMethod]);
 
   const getBooking = useCallback((id: string) => bookings[id], [bookings]);
 

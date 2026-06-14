@@ -14,12 +14,20 @@
 // black labels, soft gray surfaces, dark text. Light + dark themes.
 
 export interface ThemePalette {
-  // brand
+  // brand — yellow accent. Used for badges, map markers, "selected" rings,
+  // splash, status dots. NOT the main button color.
   primary: string;
   primaryDim: string;
   primarySoft: string;
   accent: string;
   accentSoft: string;
+
+  // CTA — main interactive button color. Dark/near-black on light theme,
+  // pure white on dark theme. Pairs with ctaText for the label colour. This
+  // is the "premium operator" colour that drives every primary action and
+  // active stepper / chip indicator in the redesigned UI.
+  cta: string;
+  ctaText: string;
 
   // text
   text: string;
@@ -68,14 +76,17 @@ export const lightPalette: ThemePalette = {
   accent: '#FACC15',
   accentSoft: '#FEF9C3',
 
+  cta: '#0A0A0A',
+  ctaText: '#FFFFFF',
+
   text: '#0A0A0A',
   textMuted: '#6B7280',
   textSubtle: '#9CA3AF',
-  // Buttons read textInverse for their label. Yellow primary needs black.
+  // textInverse stays black for legacy yellow chips that put text on yellow.
   textInverse: '#0A0A0A',
 
   background: '#FFFFFF',
-  surface: '#F5F5F7',
+  surface: '#F4F4F6',
   surfaceMuted: '#FAFAFB',
   card: '#FFFFFF',
 
@@ -108,6 +119,10 @@ export const darkPalette: ThemePalette = {
   primarySoft: '#3F2E0A',
   accent: '#FDE047',
   accentSoft: '#3F2E0A',
+
+  // Dark theme: CTA flips to white-on-dark for the same premium contrast.
+  cta: '#F5F5F7',
+  ctaText: '#0A0A0A',
 
   text: '#F5F5F7',
   textMuted: '#9CA3AF',

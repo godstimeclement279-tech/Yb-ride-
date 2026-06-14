@@ -25,8 +25,13 @@ export interface Theme {
 const ThemeContext = createContext<Theme | null>(null);
 
 export function ThemeProvider({ children }: PropsWithChildren) {
+  // Default 'light' (was 'system'). YB Ride brand = yellow accent on white
+  // background; we don't yet ship a dark-mode visual treatment that
+  // matches the brand, so override system dark-mode to keep the brand
+  // palette consistent across all phones. setMode is still exposed so a
+  // future Settings toggle can opt back into system or dark.
   const systemScheme = useColorScheme();
-  const [override, setOverride] = useState<ThemeMode | 'system'>('system');
+  const [override, setOverride] = useState<ThemeMode | 'system'>('light');
 
   const mode: ThemeMode =
     override === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : override;
