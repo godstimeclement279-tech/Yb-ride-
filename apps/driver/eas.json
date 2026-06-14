@@ -17,6 +17,12 @@
         "simulator": false
       }
     },
+    "preview-no-minify": {
+      "extends": "preview",
+      "env": {
+        "DISABLE_PROGUARD": "true"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "android": {

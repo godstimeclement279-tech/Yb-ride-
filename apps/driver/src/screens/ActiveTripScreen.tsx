@@ -12,8 +12,8 @@ import { Divider } from '../components/Divider';
 import { StatusBadge } from '../components/StatusBadge';
 import { StarRating } from '../components/StarRating';
 import { Map } from '../components/Map';
-import { formatNaira, formatDistance, formatDuration } from '@yb/shared';
-import { MOCK_ACTIVE_PASSENGER } from '../data/mockData';
+import { formatNaira, formatDistance, formatDuration, type Passenger } from '@yb/shared';
+import { subscribePassenger } from '../services/firebase/passengersService';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,6 +37,19 @@ export function ActiveTripScreen() {
   } = useTrip();
   const [showRating, setShowRating] = useState(false);
   const [stars, setStars] = useState<1 | 2 | 3 | 4 | 5>(5);
+  const [passenger, setPassenger] = useState<Passenger | null>(null);
+  const passengerId = activeBooking?.passengerId;
+  useEffect(() => {
+    if (!passengerId) {
+      setPassenger(null);
+      return;
+    }
+    return subscribePassenger(passengerId, setPassenger);
+  }, [passengerId]);
+
+  const passengerName = passenger?.name ?? 'Passenger';
+  const passengerPhone = passenger?.phone ?? '';
+  const passengerRating = passenger?.averageRating;
 
   if (!activeBooking) {
     return (
@@ -55,7 +68,11 @@ export function ActiveTripScreen() {
   const isFinal = status === 'completed' || status === 'cancelled';
 
   const callPassenger = () => {
-    Linking.openURL(`tel:${MOCK_ACTIVE_PASSENGER.phone}`);
+    if (!passengerPhone) {
+      Alert.alert('No phone number', 'Passenger has not added a phone number.');
+      return;
+    }
+    Linking.openURL(`tel:${passengerPhone}`);
   };
 
   const onCancel = () => {
@@ -134,12 +151,13 @@ export function ActiveTripScreen() {
                 justifyContent: 'center',
               }}
             >
-              <Text variant="h3">{MOCK_ACTIVE_PASSENGER.name.charAt(0)}</Text>
+              <Text variant="h3">{passengerName.charAt(0) || '?'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text variant="bodyStrong">{MOCK_ACTIVE_PASSENGER.name}</Text>
+              <Text variant="bodyStrong">{passengerName}</Text>
               <Text variant="small" color="muted">
-                ★ {MOCK_ACTIVE_PASSENGER.rating.toFixed(1)} · {MOCK_ACTIVE_PASSENGER.phone}
+                {passengerRating !== undefined ? `★ ${passengerRating.toFixed(1)} · ` : ''}
+                {passengerPhone || 'No phone on file'}
               </Text>
             </View>
             <Pressable
@@ -224,7 +242,7 @@ export function ActiveTripScreen() {
         {showRating && (
           <Card>
             <View style={{ gap: spacing.sm, alignItems: 'center' }}>
-              <Text variant="bodyStrong">Rate {MOCK_ACTIVE_PASSENGER.name.split(' ')[0]}</Text>
+              <Text variant="bodyStrong">Rate {passengerName.split(' ')[0] || 'rider'}</Text>
               <StarRating value={stars} onChange={setStars} />
               <Button label="Submit rating" onPress={onSubmitRating} />
             </View>

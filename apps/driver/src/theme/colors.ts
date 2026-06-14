@@ -10,6 +10,12 @@ export interface ThemePalette {
   primaryDim: string;
   accent: string;
 
+  // Premium CTA layer — dark in light theme, light in dark theme. Brand
+  // (yellow) stays as accent (badges, status pills, brand splash). Mirrors
+  // the passenger theme so the two apps feel like one product family.
+  cta: string;
+  ctaText: string;
+
   text: string;
   textMuted: string;
   textInverse: string;
@@ -44,6 +50,10 @@ export const lightPalette: ThemePalette = {
   primaryDim: '#EAB308',
   accent: '#FACC15',
 
+  // Dark CTA + white label — premium contrast on white canvas.
+  cta: '#0A0A0A',
+  ctaText: '#FFFFFF',
+
   text: '#0A0A0A',
   textMuted: '#6B7280',
   // Buttons read textInverse for their label — yellow primary needs black.
@@ -77,6 +87,10 @@ export const darkPalette: ThemePalette = {
   primary: '#FACC15',
   primaryDim: '#FDE047',
   accent: '#FDE047',
+
+  // Dark theme: CTA flips to white-on-dark for the same premium contrast.
+  cta: '#F5F5F7',
+  ctaText: '#0A0A0A',
 
   text: '#F5F5F7',
   textMuted: '#9CA3AF',

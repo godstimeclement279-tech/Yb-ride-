@@ -7,8 +7,8 @@ const fontFamily = Platform.select({
 });
 
 export const typography = {
-  h1: { fontFamily, fontSize: 28, fontWeight: '700', lineHeight: 34 } satisfies TextStyle,
-  h2: { fontFamily, fontSize: 24, fontWeight: '700', lineHeight: 30 } satisfies TextStyle,
+  h1: { fontFamily, fontSize: 32, fontWeight: '800', lineHeight: 38, letterSpacing: -0.6 } satisfies TextStyle,
+  h2: { fontFamily, fontSize: 26, fontWeight: '700', lineHeight: 32, letterSpacing: -0.3 } satisfies TextStyle,
   h3: { fontFamily, fontSize: 18, fontWeight: '600', lineHeight: 24 } satisfies TextStyle,
   body: { fontFamily, fontSize: 16, fontWeight: '400', lineHeight: 22 } satisfies TextStyle,
   bodyStrong: { fontFamily, fontSize: 16, fontWeight: '600', lineHeight: 22 } satisfies TextStyle,

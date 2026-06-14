@@ -39,6 +39,48 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Firebase Auth has no built-in client timeout — signInWithEmailAndPassword
+// will sit pending forever if the device has no route to the internet
+// (intermittent on cellular-hotspot setups during testing). Race it against a
+// timer so the UI shows a real error instead of an infinite spinner.
+const AUTH_TIMEOUT_MS = 60000;
+
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject({ code: 'app/timeout', message: label }), AUTH_TIMEOUT_MS),
+    ),
+  ]);
+}
+
+function isRetryableNetworkError(code: string): boolean {
+  return (
+    code === 'auth/network-request-failed' ||
+    code === 'app/timeout' ||
+    code === 'auth/internal-error'
+  );
+}
+
+async function withNetworkRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  delayMs = 3000,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const code = (err as { code?: string })?.code ?? '';
+      if (!isRetryableNetworkError(code) || attempt === maxAttempts) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastErr;
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(FIREBASE_CONFIGURED);
@@ -63,7 +105,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      const driver = await fetchDriverProfile(fbUser.uid);
+      // fetchDriverProfile hits Firestore. On a flaky connection that call
+      // can throw "Failed to get document because the client is offline" —
+      // wrap so we surface a clean retry message instead of an "Uncaught (in
+      // promise)" overlay.
+      let driver;
+      try {
+        driver = await fetchDriverProfile(fbUser.uid);
+      } catch {
+        await signOutDriver().catch(() => {});
+        setUser(null);
+        setError('Could not reach the server to load your profile. Check your connection and try again.');
+        setLoading(false);
+        return;
+      }
       if (!driver) {
         await signOutDriver().catch(() => {});
         setUser(null);
@@ -116,9 +171,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setLoading(true);
     setError(null);
     try {
-      await signInDriver(email, password);
-      // onAuthStateChanged above takes over and sets loading=false after the
-      // profile resolves.
+      await withNetworkRetry(() =>
+        withTimeout(signInDriver(email, password), 'app/timeout'),
+      );
       return true;
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code ?? '';

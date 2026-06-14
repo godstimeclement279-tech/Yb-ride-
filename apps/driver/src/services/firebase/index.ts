@@ -31,9 +31,16 @@ function init(): void {
   if (Platform.OS === 'web') {
     _auth = getAuth(_app);
   } else {
-    _auth = initializeAuth(_app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
+    // If getReactNativePersistence ever stops resolving (Firebase v12 ESM/RN
+    // entry-point edge case), fall back to in-memory auth so the app still
+    // boots — the driver just has to sign in again on each restart.
+    try {
+      _auth = initializeAuth(_app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } catch {
+      _auth = getAuth(_app);
+    }
   }
 }
 

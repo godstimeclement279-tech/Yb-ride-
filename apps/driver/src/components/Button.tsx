@@ -8,7 +8,7 @@ import {
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from './Text';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'accent';
+type Variant = 'primary' | 'brand' | 'secondary' | 'ghost' | 'danger' | 'success' | 'accent';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends Omit<PressableProps, 'children' | 'style'> {
@@ -38,7 +38,10 @@ export function Button({
   }[size];
 
   const palette = {
-    primary: { bg: colors.primary, text: colors.textInverse, border: colors.primary },
+    // primary = dark CTA (premium contrast); brand = yellow (kept for rare
+    // on-brand moments like "Go Online"). Mirrors passenger app.
+    primary: { bg: colors.cta, text: colors.ctaText, border: colors.cta },
+    brand: { bg: colors.primary, text: colors.textInverse, border: colors.primary },
     secondary: { bg: 'transparent', text: colors.primary, border: colors.primary },
     ghost: { bg: 'transparent', text: colors.text, border: 'transparent' },
     danger: { bg: colors.error, text: colors.textInverse, border: colors.error },

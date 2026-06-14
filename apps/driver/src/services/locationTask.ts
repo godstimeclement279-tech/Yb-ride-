@@ -38,34 +38,41 @@ async function loadActiveDriverId(): Promise<string | null> {
 // ─── Task definition (must run at module load, before app code starts) ────
 
 if (Platform.OS !== 'web') {
-  // defineTask is idempotent — safe to call on every JS reload.
-  TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
-    if (error) {
-      if (__DEV__) console.warn('[bg-location] task error', error);
-      return;
-    }
-    if (!data) return;
-    const { locations } = data as LocationTaskPayload;
-    if (!locations || locations.length === 0) return;
+  // defineTask is idempotent — safe to call on every JS reload. Wrap in
+  // try/catch so a TaskManager native-module registration race at cold boot
+  // can't crash the app; worst case the bg task simply isn't defined and
+  // startBackgroundLocation below will fail gracefully.
+  try {
+    TaskManager.defineTask(BG_LOCATION_TASK, async ({ data, error }) => {
+      if (error) {
+        if (__DEV__) console.warn('[bg-location] task error', error);
+        return;
+      }
+      if (!data) return;
+      const { locations } = data as LocationTaskPayload;
+      if (!locations || locations.length === 0) return;
 
-    const driverId = await loadActiveDriverId();
-    if (!driverId) return;
+      const driverId = await loadActiveDriverId();
+      if (!driverId) return;
 
-    // Push only the latest ping — Realtime Database write cost is per-update,
-    // and stale intermediate samples are noise for live tracking.
-    const last = locations[locations.length - 1]!;
-    try {
-      await pushDriverLocation(driverId, {
-        latitude: last.coords.latitude,
-        longitude: last.coords.longitude,
-        heading: last.coords.heading,
-        speed: last.coords.speed,
-        accuracy: last.coords.accuracy,
-      });
-    } catch (err) {
-      if (__DEV__) console.warn('[bg-location] push error', err);
-    }
-  });
+      // Push only the latest ping — Realtime Database write cost is per-update,
+      // and stale intermediate samples are noise for live tracking.
+      const last = locations[locations.length - 1]!;
+      try {
+        await pushDriverLocation(driverId, {
+          latitude: last.coords.latitude,
+          longitude: last.coords.longitude,
+          heading: last.coords.heading,
+          speed: last.coords.speed,
+          accuracy: last.coords.accuracy,
+        });
+      } catch (err) {
+        if (__DEV__) console.warn('[bg-location] push error', err);
+      }
+    });
+  } catch (err) {
+    if (__DEV__) console.warn('[bg-location] defineTask failed', err);
+  }
 }
 
 // ─── Start / stop helpers (called from TripContext) ───────────────────────
@@ -102,7 +109,7 @@ export async function startBackgroundLocation(driverId: string): Promise<boolean
       notificationTitle: 'YB Ride is sharing your live location',
       notificationBody:
         'Passengers and dispatch can see your position while you are online.',
-      notificationColor: '#1E3A8A',
+      notificationColor: '#FACC15',
     },
   });
   return true;

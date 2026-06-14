@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import {
   arrayRemove,
   arrayUnion,
@@ -9,53 +8,81 @@ import {
 import { COLLECTIONS } from '@yb/shared';
 import { FIREBASE_CONFIGURED, getDb } from './firebase/index';
 
-// ─── Foreground behaviour ──────────────────────────────────────────────────
-// Drivers must hear incoming-trip alerts even while the app is foregrounded.
+// ─── Lazy native-module accessor ───────────────────────────────────────────
+// `import * as Notifications from 'expo-notifications'` resolves the
+// ExpoPushTokenManager JNI module at import time. On Android that module
+// only registers when FCM is configured (google-services.json + Firebase
+// Android app). Without it the import throws and the app cold-crashes.
+//
+// Wrap the require so a missing native module just disables push instead
+// of taking the whole app down — the rest of the driver app (auth, trips)
+// keeps working. Wire FCM properly before launch to re-enable.
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _notifications: any = undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getNotifications(): any | null {
+  if (_notifications !== undefined) return _notifications;
+  try {
+    _notifications = require('expo-notifications');
+  } catch (err) {
+    if (__DEV__) console.warn('expo-notifications unavailable', err);
+    _notifications = null;
+  }
+  return _notifications;
+}
+
+// ─── Foreground behaviour ──────────────────────────────────────────────────
+
+let _handlerInstalled = false;
+function ensureNotificationHandler(): void {
+  if (_handlerInstalled) return;
+  const N = getNotifications();
+  if (!N) return;
+  try {
+    N.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    _handlerInstalled = true;
+  } catch (err) {
+    if (__DEV__) console.warn('setNotificationHandler failed', err);
+  }
+}
 
 // ─── Android channels ──────────────────────────────────────────────────────
-// Two channels:
-//   - default: routine trip-state updates (cancellations, etc.)
-//   - urgent : new-assignment offers. MAX importance, vibrates aggressively,
-//              bypasses Do-Not-Disturb if the OS lets us (Android exposes
-//              the toggle in system settings — we set the channel up to
-//              request it).
-//
-// To swap the urgent sound for a custom WAV later:
-//   1. Drop the file at apps/driver/assets/sounds/urgent.wav (44.1 kHz, mono
-//      or stereo, < 30 s).
-//   2. Change the `sound:` field below to 'urgent.wav'.
-//   3. Add the file path to app.config.js -> plugins -> expo-notifications.
 
 async function setupAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'Trip updates',
-    description: 'Status changes for trips you are already on.',
-    importance: Notifications.AndroidImportance.DEFAULT,
-    sound: 'default',
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#1E3A8A',
-  });
-  await Notifications.setNotificationChannelAsync('urgent', {
-    name: 'New trip offers',
-    description: 'A passenger is waiting. These alerts must reach you fast.',
-    importance: Notifications.AndroidImportance.MAX,
-    sound: 'default',
-    vibrationPattern: [0, 800, 400, 800, 400, 800],
-    enableVibrate: true,
-    lightColor: '#1E3A8A',
-    bypassDnd: true,
-    showBadge: true,
-  });
+  const N = getNotifications();
+  if (!N) return;
+  try {
+    await N.setNotificationChannelAsync('default', {
+      name: 'Trip updates',
+      description: 'Status changes for trips you are already on.',
+      importance: N.AndroidImportance.DEFAULT,
+      sound: 'default',
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FACC15',
+    });
+    await N.setNotificationChannelAsync('urgent', {
+      name: 'New trip offers',
+      description: 'A passenger is waiting. These alerts must reach you fast.',
+      importance: N.AndroidImportance.MAX,
+      sound: 'default',
+      vibrationPattern: [0, 800, 400, 800, 400, 800],
+      enableVibrate: true,
+      lightColor: '#FACC15',
+      bypassDnd: true,
+      showBadge: true,
+    });
+  } catch (err) {
+    if (__DEV__) console.warn('setNotificationChannelAsync failed', err);
+  }
 }
 
 // ─── Token registration ────────────────────────────────────────────────────
@@ -66,30 +93,34 @@ interface RegisterResult {
   reason?: string;
 }
 
-/**
- * Ask for permission, fetch the device push token, and write it under
- * /drivers/{uid}.fcmTokens. Idempotent — safe to call on every sign-in.
- * No-ops on web.
- */
 export async function registerForPushNotifications(
   driverId: string,
 ): Promise<RegisterResult> {
   if (Platform.OS === 'web') return { ok: false, reason: 'web' };
   if (!FIREBASE_CONFIGURED) return { ok: false, reason: 'firebase-not-configured' };
+  const N = getNotifications();
+  if (!N) return { ok: false, reason: 'notifications-native-missing' };
 
+  ensureNotificationHandler();
   await setupAndroidChannels();
 
-  const settings = await Notifications.getPermissionsAsync();
-  let granted = settings.granted;
-  if (!granted) {
-    const req = await Notifications.requestPermissionsAsync();
-    granted = req.granted;
+  let granted = false;
+  try {
+    const settings = await N.getPermissionsAsync();
+    granted = settings.granted;
+    if (!granted) {
+      const req = await N.requestPermissionsAsync();
+      granted = req.granted;
+    }
+  } catch (err) {
+    if (__DEV__) console.warn('permissions check failed', err);
+    return { ok: false, reason: 'permission-check-failed' };
   }
   if (!granted) return { ok: false, reason: 'permission-denied' };
 
   let token: string;
   try {
-    const res = await Notifications.getDevicePushTokenAsync();
+    const res = await N.getDevicePushTokenAsync();
     token = res.data;
   } catch (err) {
     if (__DEV__) console.warn('getDevicePushTokenAsync failed', err);
@@ -111,15 +142,13 @@ export async function registerForPushNotifications(
   return { ok: true, token };
 }
 
-/**
- * Remove this device's token on sign-out so the app doesn't keep waking
- * drivers who are no longer signed in.
- */
 export async function unregisterPushNotifications(driverId: string): Promise<void> {
   if (Platform.OS === 'web') return;
   if (!FIREBASE_CONFIGURED) return;
+  const N = getNotifications();
+  if (!N) return;
   try {
-    const res = await Notifications.getDevicePushTokenAsync();
+    const res = await N.getDevicePushTokenAsync();
     const token = res.data;
     const db = getDb()!;
     await setDoc(

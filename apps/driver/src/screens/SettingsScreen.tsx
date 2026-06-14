@@ -1,5 +1,5 @@
-import React from 'react';
-import { Alert, View } from 'react-native';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
@@ -7,6 +7,7 @@ import { ListItem } from '../components/ListItem';
 import { Divider } from '../components/Divider';
 import { Pill } from '../components/Pill';
 import { Button } from '../components/Button';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,19 +15,12 @@ export function SettingsScreen() {
   const { mode, setMode, spacing } = useTheme();
   const { signOut } = useAuth();
 
-  const onSignOut = () => {
-    Alert.alert('Sign out?', 'You will go offline and need to sign in again.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          signOut().catch(() => {
-            Alert.alert('Could not sign out', 'Try again in a moment.');
-          });
-        },
-      },
-    ]);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
+
+  const doSignOut = () => {
+    setSignOutOpen(false);
+    signOut().catch(() => setSignOutError(true));
   };
 
   return (
@@ -64,11 +58,31 @@ export function SettingsScreen() {
         </Text>
       </Card>
 
-      <Button label="Sign out" variant="danger" onPress={onSignOut} />
+      <Button label="Sign out" variant="danger" onPress={() => setSignOutOpen(true)} />
 
       <View style={{ alignItems: 'center', marginTop: spacing.md }}>
         <Text variant="caption" color="muted">YB Ride Driver · v0.1.0</Text>
       </View>
+
+      <ConfirmDialog
+        visible={signOutOpen}
+        title="Sign out?"
+        message="You will go offline and need to sign in again."
+        confirmLabel="Sign out"
+        confirmTone="danger"
+        onConfirm={doSignOut}
+        onCancel={() => setSignOutOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={signOutError}
+        title="Could not sign out"
+        message="Try again in a moment."
+        confirmLabel="OK"
+        cancelLabel=""
+        onConfirm={() => setSignOutError(false)}
+        onCancel={() => setSignOutError(false)}
+      />
     </Screen>
   );
 }

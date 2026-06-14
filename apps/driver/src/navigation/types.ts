@@ -3,6 +3,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 
 export type RootStackParamList = {
+  BrandSplash: undefined;
+  Onboarding: undefined;
   Login: undefined;
   Main: undefined;
   TripDetails: { bookingId: string };

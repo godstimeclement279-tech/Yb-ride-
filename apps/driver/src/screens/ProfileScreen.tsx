@@ -1,5 +1,5 @@
-import React from 'react';
-import { Alert, View } from 'react-native';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
@@ -8,6 +8,7 @@ import { Card } from '../components/Card';
 import { ListItem } from '../components/ListItem';
 import { Button } from '../components/Button';
 import { Divider } from '../components/Divider';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeProvider';
 import { formatNaira } from '@yb/shared';
@@ -20,14 +21,9 @@ export function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { spacing, colors } = useTheme();
 
-  if (!user) return null;
+  const [signOutOpen, setSignOutOpen] = useState(false);
 
-  const onSignOut = () => {
-    Alert.alert('Sign out?', 'You will need to sign in again to receive trips.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: signOut },
-    ]);
-  };
+  if (!user) return null;
 
   return (
     <Screen scroll>
@@ -90,7 +86,20 @@ export function ProfileScreen() {
         />
       </Card>
 
-      <Button label="Sign out" onPress={onSignOut} variant="danger" />
+      <Button label="Sign out" onPress={() => setSignOutOpen(true)} variant="danger" />
+
+      <ConfirmDialog
+        visible={signOutOpen}
+        title="Sign out?"
+        message="You will need to sign in again to receive trips."
+        confirmLabel="Sign out"
+        confirmTone="danger"
+        onConfirm={() => {
+          setSignOutOpen(false);
+          signOut();
+        }}
+        onCancel={() => setSignOutOpen(false)}
+      />
 
       <View style={{ alignItems: 'center', marginTop: spacing.md }}>
         <Text variant="caption" color="muted">

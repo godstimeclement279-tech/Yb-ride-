@@ -1,9 +1,13 @@
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
+import { withDebugBadge } from '../components/DebugBadge';
 import { MainTabs } from './MainTabs';
+import { BrandSplashScreen } from '../screens/BrandSplashScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { TripDetailsScreen } from '../screens/TripDetailsScreen';
 import { ActiveTripScreen } from '../screens/ActiveTripScreen';
@@ -13,6 +17,18 @@ import { DocumentsScreen } from '../screens/DocumentsScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// Pre-wrapped diagnostic versions of every auth-stack screen. Red badge
+// top-left proves the screen mounted; inline ErrorBoundary catches
+// per-screen render errors. Strip withDebugBadge wraps before launch.
+const DBrandSplash = withDebugBadge('BrandSplash', BrandSplashScreen);
+const DOnboarding = withDebugBadge('Onboarding', OnboardingScreen);
+const DLogin = withDebugBadge('Login', LoginScreen);
+
+const LAST_ROUTE_KEY = 'yb-driver:last-route';
+function persistLastRoute(name: string): void {
+  AsyncStorage.setItem(LAST_ROUTE_KEY, JSON.stringify({ name, ts: Date.now() })).catch(() => {});
+}
 
 export function RootNavigator() {
   const theme = useTheme();
@@ -44,7 +60,13 @@ export function RootNavigator() {
         };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer
+      theme={navTheme}
+      onStateChange={state => {
+        const route = state?.routes?.[state.index ?? 0];
+        if (route?.name) persistLastRoute(route.name);
+      }}
+    >
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: theme.colors.background },
@@ -54,11 +76,23 @@ export function RootNavigator() {
         }}
       >
         {!isAuthed ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
+          <>
+            <Stack.Screen
+              name="BrandSplash"
+              component={DBrandSplash}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Onboarding"
+              component={DOnboarding}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Login"
+              component={DLogin}
+              options={{ headerShown: false }}
+            />
+          </>
         ) : (
           <>
             <Stack.Screen

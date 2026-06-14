@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, View, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,8 +14,8 @@ import { OnlineToggle } from '../components/OnlineToggle';
 import { StatusBadge } from '../components/StatusBadge';
 import { Divider } from '../components/Divider';
 import { EarningsStat } from '../components/EarningsStat';
-import { formatNaira, formatDistance } from '@yb/shared';
-import { MOCK_ACTIVE_PASSENGER } from '../data/mockData';
+import { formatNaira, formatDistance, type Passenger } from '@yb/shared';
+import { subscribePassenger } from '../services/firebase/passengersService';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -34,6 +34,16 @@ export function HomeScreen() {
     declineTrip,
   } = useTrip();
   const insets = useSafeAreaInsets();
+
+  const [passenger, setPassenger] = useState<Passenger | null>(null);
+  const passengerId = activeBooking?.passengerId;
+  useEffect(() => {
+    if (!passengerId) {
+      setPassenger(null);
+      return;
+    }
+    return subscribePassenger(passengerId, setPassenger);
+  }, [passengerId]);
 
   if (!user) return null;
 
@@ -137,7 +147,10 @@ export function HomeScreen() {
               <View>
                 <Text variant="caption" color="muted">PASSENGER</Text>
                 <Text variant="body">
-                  {MOCK_ACTIVE_PASSENGER.name} · ★ {MOCK_ACTIVE_PASSENGER.rating.toFixed(1)}
+                  {passenger?.name ?? 'Loading rider…'}
+                  {passenger?.averageRating !== undefined
+                    ? ` · ★ ${passenger.averageRating.toFixed(1)}`
+                    : ''}
                 </Text>
               </View>
 
