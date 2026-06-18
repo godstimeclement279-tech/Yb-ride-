@@ -8,7 +8,6 @@ import { Card } from '../components/Card';
 import { ListItem } from '../components/ListItem';
 import { IconTile } from '../components/IconTile';
 import { Avatar } from '../components/Avatar';
-import { Badge } from '../components/Badge';
 import { SectionLabel } from '../components/SectionLabel';
 import { Divider } from '../components/Divider';
 import { useTheme } from '../theme/ThemeProvider';
@@ -66,7 +65,9 @@ export function ProfileScreen() {
         <View style={{ flex: 1, gap: spacing.xs }}>
           <Text variant="h3">{user.name}</Text>
           <Text variant="small" color="muted">{user.phone}</Text>
-          <Badge label="✓ VERIFIED USER" tone="dark" />
+          {/* Verified badge removed — the passenger user model has no
+              verification concept (only driver docs do). Re-add behind a
+              real `user.verifiedAt` field once one exists. */}
         </View>
       </View>
 

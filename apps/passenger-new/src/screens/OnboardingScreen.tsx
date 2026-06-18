@@ -51,9 +51,6 @@ const SLIDES: Slide[] = [
   },
 ];
 
-const BRAND_YELLOW = '#FACC15';
-const BRAND_YELLOW_SOFT = '#FEF3C7';
-
 export function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
@@ -151,7 +148,7 @@ export function OnboardingScreen() {
                   marginTop: spacing.md,
                   aspectRatio: 1,
                   borderRadius: 32,
-                  backgroundColor: BRAND_YELLOW_SOFT,
+                  backgroundColor: colors.primarySoft,
                   overflow: 'hidden',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -165,7 +162,7 @@ export function OnboardingScreen() {
                     width: '70%',
                     aspectRatio: 1,
                     borderRadius: 999,
-                    backgroundColor: BRAND_YELLOW,
+                    backgroundColor: colors.primary,
                     opacity: 0.35,
                   }}
                 />
