@@ -53,24 +53,28 @@ export function SavedAddressesScreen() {
         </View>
       </Card>
 
-      <SectionLabel label="Favorites" />
-      <Card variant="soft" padded={false}>
-        {favorites.map((addr, i) => (
-          <React.Fragment key={addr.id}>
-            <ListItem
-              leading={<IconTile variant="soft" size={44}><Text>{TYPE_ICON[addr.type]}</Text></IconTile>}
-              title={addr.label}
-              subtitle={addr.formatted}
-              trailing={
-                <Text variant="body" color="subtle">≡</Text>
-              }
-              onPress={() => navigation.navigate('AddAddress', { addressId: addr.id })}
-              style={{ paddingHorizontal: spacing.base }}
-            />
-            {i < favorites.length - 1 && <Divider inset={spacing.base + 44 + spacing.md} />}
-          </React.Fragment>
-        ))}
-      </Card>
+      {favorites.length > 0 && (
+        <>
+          <SectionLabel label="Favorites" />
+          <Card variant="soft" padded={false}>
+            {favorites.map((addr, i) => (
+              <React.Fragment key={addr.id}>
+                <ListItem
+                  leading={<IconTile variant="soft" size={44}><Text>{TYPE_ICON[addr.type]}</Text></IconTile>}
+                  title={addr.label}
+                  subtitle={addr.formatted}
+                  trailing={
+                    <Text variant="body" color="subtle">≡</Text>
+                  }
+                  onPress={() => navigation.navigate('AddAddress', { addressId: addr.id })}
+                  style={{ paddingHorizontal: spacing.base }}
+                />
+                {i < favorites.length - 1 && <Divider inset={spacing.base + 44 + spacing.md} />}
+              </React.Fragment>
+            ))}
+          </Card>
+        </>
+      )}
 
       {others.length > 0 && (
         <>
@@ -91,6 +95,32 @@ export function SavedAddressesScreen() {
             ))}
           </Card>
         </>
+      )}
+
+      {favorites.length === 0 && others.length === 0 && (
+        <View
+          style={{
+            paddingVertical: spacing.xl,
+            paddingHorizontal: spacing.lg,
+            alignItems: 'center',
+            gap: spacing.sm,
+          }}
+        >
+          <IconTile variant="soft" size={64}>
+            <Text style={{ fontSize: 28 }}>🏠</Text>
+          </IconTile>
+          <Text variant="bodyStrong" style={{ marginTop: spacing.sm }}>
+            No saved places yet
+          </Text>
+          <Text
+            variant="small"
+            color="muted"
+            style={{ textAlign: 'center', lineHeight: 20, maxWidth: 280 }}
+          >
+            Tap "Add New Address" above to save home, work, or anywhere else
+            you ride to often.
+          </Text>
+        </View>
       )}
 
       <View

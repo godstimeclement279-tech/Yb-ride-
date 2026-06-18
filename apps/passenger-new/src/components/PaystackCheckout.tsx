@@ -81,7 +81,7 @@ export function PaystackCheckout({
           <View style={{ flex: 1 }}>
             <Text variant="bodyStrong">Secure payment</Text>
             <Text variant="caption" color="muted">
-              Bank Transfer · Paystack
+              Card or Bank Transfer · Paystack
             </Text>
           </View>
         </View>

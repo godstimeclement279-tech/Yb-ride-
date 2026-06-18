@@ -22,9 +22,6 @@ import type { AuthStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
-const BRAND_YELLOW = '#FACC15';
-const INK = '#0A0A0A';
-
 export function LoginScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing } = useTheme();
@@ -103,7 +100,7 @@ export function LoginScreen() {
               style={{
                 width: 120,
                 height: 120,
-                shadowColor: BRAND_YELLOW,
+                shadowColor: colors.primary,
                 shadowOpacity: 0.45,
                 shadowRadius: 22,
                 shadowOffset: { width: 0, height: 0 },
@@ -148,6 +145,7 @@ export function LoginScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="emailAddress"
+              autoComplete="email"
               leadingIcon={<Ionicons name="mail-outline" size={20} color={colors.textMuted} />}
             />
             <TextInput
@@ -158,6 +156,7 @@ export function LoginScreen() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               textContentType="password"
+              autoComplete="password"
               leadingIcon={
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
               }

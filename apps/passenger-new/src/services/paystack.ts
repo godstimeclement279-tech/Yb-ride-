@@ -24,7 +24,9 @@ export interface PaystackCheckoutArgs {
   // Booking ID we want echoed back in metadata so the success callback
   // can flip the right Firestore doc.
   bookingId: string;
-  // Restrict to bank transfer (MVP). Future: add 'card' once accepted.
+  // Default channels: card + bank transfer. Card confirms in seconds; bank
+  // transfer is kept as a fallback for users without a card on file (common
+  // in Nigeria). USSD / QR / mobile_money are off by default but available.
   channels?: Array<'card' | 'bank_transfer' | 'ussd' | 'qr' | 'mobile_money'>;
 }
 
@@ -37,7 +39,7 @@ export interface PaystackCheckoutArgs {
  * Go doesn't expose React Native modules to the page itself.
  */
 export function buildPaystackCheckoutHtml(args: PaystackCheckoutArgs): string {
-  const channels = args.channels ?? ['bank_transfer'];
+  const channels = args.channels ?? ['card', 'bank_transfer'];
   const ref = `yb_${args.bookingId}_${Date.now()}`;
   return `<!DOCTYPE html>
 <html lang="en">

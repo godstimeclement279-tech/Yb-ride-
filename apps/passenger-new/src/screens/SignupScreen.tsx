@@ -21,9 +21,6 @@ import type { AuthStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
 
-const BRAND_YELLOW = '#FACC15';
-const INK = '#0A0A0A';
-
 export function SignupScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
@@ -119,6 +116,7 @@ export function SignupScreen() {
               placeholder="Enter your full name"
               autoCapitalize="words"
               textContentType="name"
+              autoComplete="name"
               leadingIcon={
                 <Ionicons name="person-outline" size={20} color={colors.textMuted} />
               }
@@ -132,6 +130,7 @@ export function SignupScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="emailAddress"
+              autoComplete="email"
               leadingIcon={
                 <Ionicons name="mail-outline" size={20} color={colors.textMuted} />
               }
@@ -143,6 +142,7 @@ export function SignupScreen() {
               placeholder="+234 800 000 0000"
               keyboardType="phone-pad"
               textContentType="telephoneNumber"
+              autoComplete="tel"
               leadingIcon={
                 <Ionicons name="phone-portrait-outline" size={20} color={colors.textMuted} />
               }
@@ -155,6 +155,7 @@ export function SignupScreen() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               textContentType="newPassword"
+              autoComplete="password-new"
               leadingIcon={
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
               }
@@ -185,7 +186,7 @@ export function SignupScreen() {
                 width: 22,
                 height: 22,
                 borderRadius: 11,
-                backgroundColor: agreed ? BRAND_YELLOW : colors.background,
+                backgroundColor: agreed ? colors.primary : colors.background,
                 borderWidth: agreed ? 0 : 1.5,
                 borderColor: colors.border,
                 alignItems: 'center',
@@ -193,7 +194,7 @@ export function SignupScreen() {
                 marginTop: 2,
               }}
             >
-              {agreed && <Ionicons name="checkmark" size={14} color={INK} />}
+              {agreed && <Ionicons name="checkmark" size={14} color={colors.cta} />}
             </View>
             <Text variant="small" color="muted" style={{ flex: 1, lineHeight: 20 }}>
               By signing up, you agree to our{' '}

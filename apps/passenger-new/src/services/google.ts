@@ -75,7 +75,7 @@ async function searchViaPlaces(q: string): Promise<PlaceResult[]> {
         }),
       },
     );
-    console.log('[gplaces:new] status', res.status, 'in', Date.now() - t0, 'ms');
+    if (__DEV__) console.log('[gplaces:new] status', res.status, 'in', Date.now() - t0, 'ms');
     if (!res.ok) return [];
     const data = (await res.json()) as {
       places?: Array<{
@@ -101,7 +101,7 @@ async function searchViaPlaces(q: string): Promise<PlaceResult[]> {
         placeId: p.id,
       }));
   } catch (e) {
-    console.log('[gplaces:new] FAILED ->', String(e), 'after', Date.now() - t0, 'ms');
+    if (__DEV__) console.log('[gplaces:new] FAILED ->', String(e), 'after', Date.now() - t0, 'ms');
     return [];
   }
 }
@@ -120,7 +120,7 @@ async function searchViaGeocoding(q: string): Promise<PlaceResult[]> {
       `&language=en` +
       `&key=${GOOGLE_MAPS_API_KEY}`;
     const res = await fetchWithTimeout(url, {});
-    console.log('[gplaces:geo] status', res.status, 'in', Date.now() - t0, 'ms');
+    if (__DEV__) console.log('[gplaces:geo] status', res.status, 'in', Date.now() - t0, 'ms');
     if (!res.ok) return [];
     const data = (await res.json()) as {
       status?: string;
@@ -151,7 +151,7 @@ async function searchViaGeocoding(q: string): Promise<PlaceResult[]> {
         };
       });
   } catch (e) {
-    console.log('[gplaces:geo] FAILED ->', String(e), 'after', Date.now() - t0, 'ms');
+    if (__DEV__) console.log('[gplaces:geo] FAILED ->', String(e), 'after', Date.now() - t0, 'ms');
     return [];
   }
 }
@@ -167,10 +167,10 @@ async function searchViaGeocoding(q: string): Promise<PlaceResult[]> {
 export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  console.log('[gplaces] start q=', q);
+  if (__DEV__) console.log('[gplaces] start q=', q);
   const places = await searchViaPlaces(q);
   if (places.length > 0) return places;
-  console.log('[gplaces] places empty/failed → falling back to geocoding');
+  if (__DEV__) console.log('[gplaces] places empty/failed → falling back to geocoding');
   return await searchViaGeocoding(q);
 }
 

@@ -62,9 +62,12 @@ export function EditProfileScreen() {
       <Screen scroll>
       <Header title="Edit Profile" back />
 
-      <View style={{ alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm }}>
+      {/* Avatar display only — photo upload is wired in a follow-up PR
+          (expo-image-picker + Firebase Storage). Until then we show the
+          generated initials avatar without a misleading "Change photo"
+          affordance that does nothing. */}
+      <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
         <Avatar name={name || user.name} size={80} />
-        <Text variant="smallStrong" color="primary">Change photo</Text>
       </View>
 
       <Card variant="soft">

@@ -3,6 +3,7 @@ import { Animated, Easing, Image, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { isOnboardingComplete } from '../services/onboardingFlag';
 import type { AuthStackParamList } from '../navigation/types';
 
@@ -22,6 +23,11 @@ export function BrandSplashScreen() {
   const logoScale = useRef(new Animated.Value(0.88)).current;
 
   useEffect(() => {
+    // Dismiss the native Expo splash now that this screen has mounted with
+    // the same yellow backdrop. Both splashes share #FACC15 + logo, so the
+    // cross-over is visually seamless — single perceived brand moment.
+    SplashScreen.hideAsync().catch(() => {});
+
     Animated.parallel([
       Animated.timing(logoOpacity, {
         toValue: 1,

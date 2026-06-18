@@ -23,9 +23,6 @@ import type { AuthStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
 
-const BRAND_YELLOW = '#FACC15';
-const INK = '#0A0A0A';
-
 export function ForgotPasswordScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing } = useTheme();
@@ -91,12 +88,12 @@ export function ForgotPasswordScreen() {
                 width: 88,
                 height: 88,
                 borderRadius: 22,
-                backgroundColor: BRAND_YELLOW,
+                backgroundColor: colors.primary,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="lock-closed" size={40} color={INK} />
+              <Ionicons name="lock-closed" size={40} color={colors.cta} />
             </View>
           </View>
 
@@ -159,6 +156,7 @@ export function ForgotPasswordScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="emailAddress"
+              autoComplete="email"
               leadingIcon={<Ionicons name="mail-outline" size={20} color={colors.textMuted} />}
             />
           </View>

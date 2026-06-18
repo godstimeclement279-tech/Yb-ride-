@@ -1,6 +1,19 @@
 import React, { useEffect } from 'react';
 import { LogBox, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep the NATIVE Expo splash visible (yellow + splash-icon.png) until our
+// custom BrandSplashScreen mounts and explicitly calls hideAsync(). Without
+// this, the user sees a visible "flip" between two splashes:
+//   1) native Expo splash (auto-dismissed when JS finishes loading)
+//   2) BrandSplashScreen (yellow + yb-logo.png, 1800ms hold + animation)
+// With preventAutoHideAsync, the native splash stays put until BrandSplash
+// is ready to take over → single seamless brand moment.
+//
+// .catch ignores the rejection that fires if hideAsync was already called
+// (e.g. fast refresh during dev).
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Suppress the Firestore "could not reach backend" / "client is offline"
 // LogBox overlay in dev. The SDK logs these as console.error internally,

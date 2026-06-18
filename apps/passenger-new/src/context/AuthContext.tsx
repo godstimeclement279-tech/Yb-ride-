@@ -171,31 +171,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     setErrorMessage(undefined);
-    // ── TEMP DIAGNOSTIC: surface what's actually happening on the device ─
+    // Dev-only diagnostic block — all logs gated by __DEV__ so production
+    // builds don't leak email addresses, timing, or network failure detail.
     const t0 = Date.now();
-    console.log('[auth] signIn start email=', email);
-    // Probe identitytoolkit (the actual Firebase Auth host) in parallel so
-    // we can see exactly what the device's fetch does for THAT host vs
-    // generic gstatic.
-    fetch('https://www.gstatic.com/generate_204')
-      .then((r) => console.log('[auth-probe] gstatic ->', r.status, 'in', Date.now() - t0, 'ms'))
-      .catch((e) => console.log('[auth-probe] gstatic FAILED ->', String(e), 'after', Date.now() - t0, 'ms'));
-    fetch('https://identitytoolkit.googleapis.com/', { method: 'HEAD' })
-      .then((r) => console.log('[auth-probe] identitytoolkit ->', r.status, 'in', Date.now() - t0, 'ms'))
-      .catch((e) => console.log('[auth-probe] identitytoolkit FAILED ->', String(e), 'after', Date.now() - t0, 'ms'));
-    // ────────────────────────────────────────────────────────────────────
+    if (__DEV__) {
+      console.log('[auth] signIn start email=', email);
+      // Probe identitytoolkit (the actual Firebase Auth host) in parallel
+      // so we can see exactly what the device's fetch does for THAT host
+      // vs generic gstatic.
+      fetch('https://www.gstatic.com/generate_204')
+        .then((r) => console.log('[auth-probe] gstatic ->', r.status, 'in', Date.now() - t0, 'ms'))
+        .catch((e) => console.log('[auth-probe] gstatic FAILED ->', String(e), 'after', Date.now() - t0, 'ms'));
+      fetch('https://identitytoolkit.googleapis.com/', { method: 'HEAD' })
+        .then((r) => console.log('[auth-probe] identitytoolkit ->', r.status, 'in', Date.now() - t0, 'ms'))
+        .catch((e) => console.log('[auth-probe] identitytoolkit FAILED ->', String(e), 'after', Date.now() - t0, 'ms'));
+    }
     try {
       await withNetworkRetry(() => {
         const attemptStart = Date.now();
-        console.log('[auth] attempt start');
+        if (__DEV__) console.log('[auth] attempt start');
         return withTimeout(signInPassenger(email, password), 'app/timeout')
           .then((r) => {
-            console.log('[auth] attempt OK in', Date.now() - attemptStart, 'ms');
+            if (__DEV__) console.log('[auth] attempt OK in', Date.now() - attemptStart, 'ms');
             return r;
           })
           .catch((err) => {
             const e = err as { code?: string; message?: string };
-            console.log('[auth] attempt FAILED code=', e?.code, 'msg=', e?.message, 'in', Date.now() - attemptStart, 'ms');
+            if (__DEV__) console.log('[auth] attempt FAILED code=', e?.code, 'msg=', e?.message, 'in', Date.now() - attemptStart, 'ms');
             throw err;
           });
       });
