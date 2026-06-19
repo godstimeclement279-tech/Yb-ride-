@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Banner,
   Button,
@@ -282,12 +282,11 @@ export function BookingDetail() {
                 }}
               >
                 <div>
-                  <Link
-                    to={`/drivers/${driver.id}`}
-                    style={{ fontWeight: 600, fontSize: 14 }}
-                  >
+                  {/* Plain text — DriverDetail page (/drivers/:id) isn't
+                      registered yet. Re-add <Link> once it lands. */}
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>
                     {driver.name}
-                  </Link>
+                  </span>
                   <div
                     style={{
                       fontSize: 12,
@@ -365,7 +364,7 @@ function AssignDriverModal({
       onClose();
       setSelected('');
     } catch (e) {
-      console.warn(e);
+      if (import.meta.env.DEV) console.warn(e);
       setError('Could not assign driver. Try again.');
     } finally {
       setSubmitting(false);
@@ -451,7 +450,9 @@ function DriverPickRow({
       style={{
         textAlign: 'left',
         width: '100%',
-        background: selected ? 'rgba(30,58,138,0.08)' : 'var(--c-surface)',
+        // 250,204,21 = brand yellow #FACC15. Was Stripe ink blue
+        // rgba(30,58,138) from the deprecated palette; missed in the revert.
+        background: selected ? 'rgba(250,204,21,0.15)' : 'var(--c-surface)',
         border: `1px solid ${selected ? 'var(--c-primary)' : 'var(--c-border)'}`,
         borderRadius: 10,
         padding: '12px 14px',
@@ -531,7 +532,7 @@ function CancelBookingModal({
       onClose();
       setReason('');
     } catch (e) {
-      console.warn(e);
+      if (import.meta.env.DEV) console.warn(e);
       setError('Could not cancel. Try again.');
     } finally {
       setSubmitting(false);

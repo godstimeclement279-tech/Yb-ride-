@@ -16,6 +16,6 @@ export function subscribePassenger(
     doc(getDb()!, COLLECTIONS.USERS, id),
     (snap) =>
       callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as Passenger) : null),
-    (err) => console.warn('subscribePassenger error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribePassenger error', err),
   );
 }

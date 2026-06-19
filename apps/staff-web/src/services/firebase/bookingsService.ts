@@ -35,7 +35,7 @@ export function subscribeAllBookings(
       );
       callback(bookings);
     },
-    (err) => console.warn('subscribeAllBookings error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeAllBookings error', err),
   );
 }
 
@@ -58,7 +58,7 @@ export function subscribeBookingsByStatus(
     (snap) => {
       callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Booking)));
     },
-    (err) => console.warn('subscribeBookingsByStatus error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeBookingsByStatus error', err),
   );
 }
 
@@ -74,7 +74,7 @@ export function subscribeBooking(
     doc(getDb()!, COLLECTIONS.BOOKINGS, id),
     (snap) =>
       callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as Booking) : null),
-    (err) => console.warn('subscribeBooking error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeBooking error', err),
   );
 }
 

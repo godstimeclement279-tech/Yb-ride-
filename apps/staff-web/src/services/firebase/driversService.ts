@@ -26,7 +26,7 @@ export function subscribeAllDrivers(
     q,
     (snap) =>
       callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Driver))),
-    (err) => console.warn('subscribeAllDrivers error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeAllDrivers error', err),
   );
 }
 
@@ -42,7 +42,7 @@ export function subscribeDriver(
     doc(getDb()!, COLLECTIONS.DRIVERS, id),
     (snap) =>
       callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as Driver) : null),
-    (err) => console.warn('subscribeDriver error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeDriver error', err),
   );
 }
 
@@ -63,6 +63,6 @@ export function subscribeAssignableDrivers(
     q,
     (snap) =>
       callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Driver))),
-    (err) => console.warn('subscribeAssignableDrivers error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeAssignableDrivers error', err),
   );
 }

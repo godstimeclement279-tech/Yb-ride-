@@ -209,7 +209,10 @@ type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'error' | 'info';
 
 const toneColor: Record<Tone, { bg: string; text: string }> = {
   neutral: { bg: 'var(--c-divider)', text: 'var(--c-textMuted)' },
-  primary: { bg: 'rgba(30,58,138,0.10)', text: 'var(--c-primary)' },
+  // 250,204,21 = brand yellow #FACC15. Was Stripe ink blue rgba(30,58,138)
+  // from the deprecated Stripe-leaning palette; missed in the revert.
+  // Text stays brand-dark (var(--c-text)) for contrast on the yellow tint.
+  primary: { bg: 'rgba(250,204,21,0.18)', text: 'var(--c-text)' },
   success: { bg: 'rgba(16,185,129,0.12)', text: 'var(--c-success)' },
   warning: { bg: 'rgba(245,158,11,0.15)', text: 'var(--c-warning)' },
   error: { bg: 'rgba(239,68,68,0.12)', text: 'var(--c-error)' },

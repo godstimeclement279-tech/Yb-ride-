@@ -30,7 +30,7 @@ export function subscribeStaffProfile(
       callback(snap.exists() ? ({ id: snap.id, ...snap.data() } as Staff) : null);
     },
     (err) => {
-      console.warn('subscribeStaffProfile error', err);
+      if (import.meta.env.DEV) console.warn('subscribeStaffProfile error', err);
     },
   );
 }

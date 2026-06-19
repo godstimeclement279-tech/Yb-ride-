@@ -21,7 +21,7 @@ export function subscribeFleetLocations(
     (snap) => {
       callback((snap.val() as Record<string, DriverLocationDoc>) ?? {});
     },
-    (err) => console.warn('subscribeFleetLocations error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeFleetLocations error', err),
   );
 }
 
@@ -37,6 +37,6 @@ export function subscribeDriverLocation(
   return onValue(
     r,
     (snap) => callback(snap.exists() ? (snap.val() as DriverLocationDoc) : null),
-    (err) => console.warn('subscribeDriverLocation error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeDriverLocation error', err),
   );
 }
