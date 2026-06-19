@@ -8,6 +8,7 @@
 export interface ThemePalette {
   primary: string;
   primaryDim: string;
+  primarySoft: string;
   accent: string;
 
   // Premium CTA layer — dark in light theme, light in dark theme. Brand
@@ -48,6 +49,7 @@ export interface ThemePalette {
 export const lightPalette: ThemePalette = {
   primary: '#FACC15',
   primaryDim: '#EAB308',
+  primarySoft: '#FEF3C7',
   accent: '#FACC15',
 
   // Dark CTA + white label — premium contrast on white canvas.
@@ -86,6 +88,7 @@ export const lightPalette: ThemePalette = {
 export const darkPalette: ThemePalette = {
   primary: '#FACC15',
   primaryDim: '#FDE047',
+  primarySoft: '#3F2E0A',
   accent: '#FDE047',
 
   // Dark theme: CTA flips to white-on-dark for the same premium contrast.

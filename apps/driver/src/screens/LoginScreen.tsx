@@ -63,6 +63,7 @@ export function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
+                autoComplete="email"
               />
               <TextInput
                 label="Password"
@@ -72,6 +73,7 @@ export function LoginScreen() {
                 secureTextEntry
                 autoCapitalize="none"
                 textContentType="password"
+                autoComplete="password"
               />
               {error && (
                 <Text variant="small" color="error">{error}</Text>

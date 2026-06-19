@@ -19,6 +19,12 @@ export function withDebugBadge<P extends object>(
   name: string,
   Inner: React.ComponentType<P>,
 ): React.ComponentType<P> {
+  // Production builds (Hermes + minified release) get the bare component.
+  // The diagnostic badge + crash UI only exist in dev so end users never see
+  // the "MOUNTED:" label or a raw error stack. Metro / Hermes dead-code
+  // eliminates the class below when __DEV__ is false at build time.
+  if (!__DEV__) return Inner;
+
   class DebugBoundary extends React.Component<P, State> {
     state: State = { error: null };
     static getDerivedStateFromError(error: Error): Partial<State> {

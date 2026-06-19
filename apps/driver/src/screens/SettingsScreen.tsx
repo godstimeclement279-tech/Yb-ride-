@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
@@ -10,6 +11,7 @@ import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
+import { getApp } from '../services/firebase/index';
 
 export function SettingsScreen() {
   const { mode, setMode, spacing } = useTheme();
@@ -17,10 +19,39 @@ export function SettingsScreen() {
 
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const doSignOut = () => {
     setSignOutOpen(false);
     signOut().catch(() => setSignOutError(true));
+  };
+
+  // Invoke deleteAccount Cloud Function (v2 onCall, region europe-west1).
+  // The function removes the Firebase Auth user + /drivers/{uid} doc.
+  // Required for App Store guideline 5.1.1(v) — every user who can create an
+  // account must be able to delete it themselves.
+  const doDelete = async () => {
+    setDeleteOpen(false);
+    setDeleting(true);
+    try {
+      const app = getApp();
+      if (!app) {
+        Alert.alert('Cannot delete', 'Firebase is not configured.');
+        return;
+      }
+      const fns = getFunctions(app, 'europe-west1');
+      const fn = httpsCallable(fns, 'deleteAccount');
+      await fn({});
+      await signOut().catch(() => {});
+    } catch (err) {
+      const msg =
+        (err as { message?: string })?.message ??
+        'Try again in a moment, or contact YB Ride dispatch.';
+      Alert.alert('Could not delete account', msg);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -58,6 +89,14 @@ export function SettingsScreen() {
         </Text>
       </Card>
 
+      <Card padded={false}>
+        <ListItem
+          title={deleting ? 'Deleting…' : 'Delete account'}
+          subtitle="Permanently remove your driver profile and trip history"
+          onPress={() => !deleting && setDeleteOpen(true)}
+        />
+      </Card>
+
       <Button label="Sign out" variant="danger" onPress={() => setSignOutOpen(true)} />
 
       <View style={{ alignItems: 'center', marginTop: spacing.md }}>
@@ -82,6 +121,17 @@ export function SettingsScreen() {
         cancelLabel=""
         onConfirm={() => setSignOutError(false)}
         onCancel={() => setSignOutError(false)}
+      />
+
+      <ConfirmDialog
+        visible={deleteOpen}
+        title="Delete your account?"
+        message="This permanently removes your driver profile, trip history, and earnings record. You will need to be re-onboarded by dispatch to drive again."
+        confirmLabel="Delete account"
+        confirmTone="danger"
+        cancelLabel="Cancel"
+        onConfirm={doDelete}
+        onCancel={() => setDeleteOpen(false)}
       />
     </Screen>
   );
