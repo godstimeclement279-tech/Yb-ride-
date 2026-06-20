@@ -27,10 +27,11 @@ export function SettingsScreen() {
     signOut().catch(() => setSignOutError(true));
   };
 
-  // Invoke deleteAccount Cloud Function (v2 onCall, region europe-west1).
-  // The function removes the Firebase Auth user + /drivers/{uid} doc.
-  // Required for App Store guideline 5.1.1(v) — every user who can create an
-  // account must be able to delete it themselves.
+  // Invoke deleteMyAccount Cloud Function (v2 onCall, europe-west1).
+  // The self-service companion to deleteAccount — the latter is admin-only
+  // and rejects non-admin callers. deleteMyAccount derives role+uid from
+  // req.auth so no client args are needed. Wipes /drivers/{uid} +
+  // /users/{uid} + Auth record. Required for App Store 5.1.1(v).
   const doDelete = async () => {
     setDeleteOpen(false);
     setDeleting(true);
@@ -41,7 +42,7 @@ export function SettingsScreen() {
         return;
       }
       const fns = getFunctions(app, 'europe-west1');
-      const fn = httpsCallable(fns, 'deleteAccount');
+      const fn = httpsCallable(fns, 'deleteMyAccount');
       await fn({});
       await signOut().catch(() => {});
     } catch (err) {

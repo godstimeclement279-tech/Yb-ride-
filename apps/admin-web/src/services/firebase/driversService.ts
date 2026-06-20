@@ -31,7 +31,7 @@ export function subscribeDrivers(
       );
       callback(drivers);
     },
-    (err) => console.warn('subscribeDrivers error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeDrivers error', err),
   );
 }
 

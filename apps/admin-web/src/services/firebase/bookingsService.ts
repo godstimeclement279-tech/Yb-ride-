@@ -30,7 +30,7 @@ export function subscribeBookings(
       );
       callback(rows);
     },
-    (err) => console.warn('subscribeBookings error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeBookings error', err),
   );
 }
 
@@ -52,6 +52,6 @@ export function subscribeBooking(
       }
       callback({ id: snap.id, ...snap.data() } as Booking);
     },
-    (err) => console.warn('subscribeBooking error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeBooking error', err),
   );
 }

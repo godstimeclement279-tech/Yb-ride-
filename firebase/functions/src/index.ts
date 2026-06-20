@@ -10,6 +10,7 @@ initializeApp();
 
 export { createStaffAccount } from './createStaffAccount';
 export { deleteAccount } from './deleteAccount';
+export { deleteMyAccount } from './deleteMyAccount';
 export { initializePaystackTransaction } from './initializePaystackTransaction';
 export { notifyOnBookingStatusChange } from './notifyOnBookingStatusChange';
 export { paystackWebhook } from './paystackWebhook';

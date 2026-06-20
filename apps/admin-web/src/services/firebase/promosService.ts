@@ -26,8 +26,7 @@ export function subscribePromos(callback: (promos: Promo[]) => void): Unsubscrib
       callback(promos);
     },
     err => {
-      // eslint-disable-next-line no-console
-      console.warn('subscribePromos error', err);
+      if (import.meta.env.DEV) console.warn('subscribePromos error', err);
     },
   );
 }

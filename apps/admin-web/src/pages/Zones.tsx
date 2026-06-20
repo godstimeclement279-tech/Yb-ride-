@@ -220,7 +220,7 @@ function ZoneModal({
       }
       onClose();
     } catch (e) {
-      console.warn(e);
+      if (import.meta.env.DEV) console.warn(e);
       setError('Could not save zone. Try again.');
     } finally {
       setSaving(false);
@@ -235,7 +235,7 @@ function ZoneModal({
       await deleteZone(zone.id);
       onClose();
     } catch (e) {
-      console.warn(e);
+      if (import.meta.env.DEV) console.warn(e);
       setError('Could not delete zone.');
     } finally {
       setSaving(false);

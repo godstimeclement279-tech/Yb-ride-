@@ -176,7 +176,7 @@ function Topbar({ children }: { children?: ReactNode }) {
     try {
       await signOutNow();
     } catch (err) {
-      console.warn('signOut failed', err);
+      if (import.meta.env.DEV) console.warn('signOut failed', err);
     }
   };
   return (

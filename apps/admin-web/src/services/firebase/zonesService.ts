@@ -38,7 +38,7 @@ export function subscribeZones(
       );
       callback(zones);
     },
-    (err) => console.warn('subscribeZones error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeZones error', err),
   );
 }
 

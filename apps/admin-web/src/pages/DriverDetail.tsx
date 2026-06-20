@@ -44,7 +44,7 @@ export function DriverDetail() {
         setLoaded(true);
       },
       (err) => {
-        console.warn('driver subscribe error', err);
+        if (import.meta.env.DEV) console.warn('driver subscribe error', err);
         setLoaded(true);
       },
     );

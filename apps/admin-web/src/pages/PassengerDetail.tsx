@@ -40,7 +40,7 @@ export function PassengerDetail() {
         setLoaded(true);
       },
       (err) => {
-        console.warn('passenger subscribe error', err);
+        if (import.meta.env.DEV) console.warn('passenger subscribe error', err);
         setLoaded(true);
       },
     );

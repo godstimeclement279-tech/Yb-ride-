@@ -35,7 +35,7 @@ export function subscribePassengers(
       );
       callback(rows);
     },
-    (err) => console.warn('subscribePassengers error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribePassengers error', err),
   );
 }
 

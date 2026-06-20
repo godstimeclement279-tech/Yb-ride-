@@ -47,7 +47,7 @@ export function subscribeAdminProfile(
     doc(getDb()!, 'users', uid),
     (snap) => callback(snap.exists() ? parseProfile(uid, snap.data()) : null),
     (err) => {
-      console.warn('subscribeAdminProfile error', err);
+      if (import.meta.env.DEV) console.warn('subscribeAdminProfile error', err);
       callback(null);
     },
   );

@@ -20,10 +20,11 @@ export function PrivacyScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Invoke the deleteAccount Cloud Function (v2 onCall, region europe-west1).
-  // The function deletes the Firebase Auth user + Firestore /users/{uid} +
-  // cascades bookings. On success we sign out so the local app state matches
-  // server state. Required for App Store guideline 5.1.1(v) compliance.
+  // Invoke the deleteMyAccount Cloud Function (v2 onCall, europe-west1).
+  // The self-service companion to deleteAccount — the latter is admin-only
+  // and rejects non-admin callers. deleteMyAccount derives role+uid from
+  // req.auth so no client args are needed. Wipes /users/{uid} + Auth
+  // record. Required for App Store guideline 5.1.1(v) compliance.
   const doDelete = async () => {
     setConfirmOpen(false);
     setDeleting(true);
@@ -34,7 +35,7 @@ export function PrivacyScreen() {
         return;
       }
       const fns = getFunctions(app, 'europe-west1');
-      const fn = httpsCallable(fns, 'deleteAccount');
+      const fn = httpsCallable(fns, 'deleteMyAccount');
       await fn({});
       // Server is done; clear local auth + nav back to login. Catch any
       // sign-out error because the auth user no longer exists.

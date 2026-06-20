@@ -34,8 +34,7 @@ export function subscribeCarTypes(
       callback(types);
     },
     err => {
-      // eslint-disable-next-line no-console
-      console.warn('subscribeCarTypes error', err);
+      if (import.meta.env.DEV) console.warn('subscribeCarTypes error', err);
     },
   );
 }

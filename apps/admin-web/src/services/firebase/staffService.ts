@@ -31,7 +31,7 @@ export function subscribeStaff(
       );
       callback(rows);
     },
-    (err) => console.warn('subscribeStaff error', err),
+    (err) => import.meta.env.DEV && console.warn('subscribeStaff error', err),
   );
 }
 
