@@ -31,6 +31,13 @@ module.exports = () => ({
       config: {
         googleMapsApiKey: 'AIzaSyB4diRGz6N5lrT3Zu_IsgOgtx9sfcc6VI0',
       },
+      infoPlist: {
+        // expo-image-picker reads from the photo library when the user
+        // taps "Change photo" in Edit Profile. Apple rejects iOS builds
+        // that read the library without a usage description string.
+        NSPhotoLibraryUsageDescription:
+          'YB Ride needs access to your photos so you can set a profile picture.',
+      },
     },
     android: {
       package: 'com.ybride.passenger',

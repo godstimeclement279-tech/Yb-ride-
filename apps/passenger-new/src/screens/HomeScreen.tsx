@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { SavedAddress } from '@yb/shared';
 import { Text } from '../components/Text';
 import { Button } from '../components/Button';
 import { SearchBar } from '../components/SearchBar';
@@ -17,10 +18,10 @@ import { IconTile } from '../components/IconTile';
 import { useTheme } from '../theme/ThemeProvider';
 import { usePassenger } from '../context/AuthContext';
 import { useRide } from '../context/RideContext';
+import { subscribeSavedAddresses } from '../services/firebase/savedAddressesService';
 import {
   MOCK_ETA_SECONDS,
   MOCK_RECENT_PLACES,
-  MOCK_SAVED_ADDRESSES,
 } from '../data/mockData';
 import { formatNaira } from '@yb/shared';
 import type { RootStackParamList } from '../navigation/types';
@@ -61,6 +62,16 @@ export function HomeScreen() {
   } = useRide();
   const [creating, setCreating] = useState(false);
   const [sheetCollapsed, setSheetCollapsed] = useState(true);
+
+  // Live saved addresses for the Home / Work quick-pick pills under the
+  // destination input. Falls back to an empty list while loading.
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  useEffect(() => {
+    return subscribeSavedAddresses(user.id, setSavedAddresses);
+  }, [user.id]);
+  const quickPicks = savedAddresses.filter(
+    (a) => a.type === 'home' || a.type === 'work',
+  );
 
   const showRideSelector = !!dropoff;
 
@@ -165,16 +176,18 @@ export function HomeScreen() {
               onPress={() => navigation.navigate('LocationSearch', { mode: 'dropoff' })}
             />
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-              {MOCK_SAVED_ADDRESSES.map(addr => (
-                <Pill
-                  key={addr.id}
-                  label={addr.label}
-                  leading={<Text>{addr.type === 'home' ? '🏠' : '💼'}</Text>}
-                  onPress={() => setDropoff(addr)}
-                />
-              ))}
-            </View>
+            {quickPicks.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                {quickPicks.map(addr => (
+                  <Pill
+                    key={addr.id}
+                    label={addr.label}
+                    leading={<Text>{addr.type === 'home' ? '🏠' : '💼'}</Text>}
+                    onPress={() => setDropoff(addr)}
+                  />
+                ))}
+              </View>
+            )}
 
             {!sheetCollapsed && (
               <View style={{ marginTop: spacing.lg }}>

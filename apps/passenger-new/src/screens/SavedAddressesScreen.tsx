@@ -1,7 +1,8 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { SavedAddress } from '@yb/shared';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
 import { Card } from '../components/Card';
@@ -11,7 +12,8 @@ import { SectionLabel } from '../components/SectionLabel';
 import { Header } from '../components/Header';
 import { Divider } from '../components/Divider';
 import { useTheme } from '../theme/ThemeProvider';
-import { MOCK_SAVED_ADDRESSES } from '../data/mockData';
+import { usePassenger } from '../context/AuthContext';
+import { subscribeSavedAddresses } from '../services/firebase/savedAddressesService';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -25,9 +27,21 @@ const TYPE_ICON: Record<string, string> = {
 export function SavedAddressesScreen() {
   const navigation = useNavigation<Nav>();
   const { colors, spacing, radius } = useTheme();
+  const user = usePassenger();
 
-  const favorites = MOCK_SAVED_ADDRESSES.filter(a => a.type === 'home' || a.type === 'work');
-  const others = MOCK_SAVED_ADDRESSES.filter(a => a.type === 'other');
+  const [addresses, setAddresses] = useState<SavedAddress[] | null>(null);
+
+  // Live subscription on /users/{uid}/savedAddresses — keeps the list fresh
+  // when AddAddress saves or another device edits.
+  useEffect(() => {
+    return subscribeSavedAddresses(user.id, setAddresses);
+  }, [user.id]);
+
+  const loading = addresses === null;
+  const favorites = (addresses ?? []).filter(
+    (a) => a.type === 'home' || a.type === 'work',
+  );
+  const others = (addresses ?? []).filter((a) => a.type === 'other');
 
   return (
     <Screen scroll>
@@ -53,7 +67,13 @@ export function SavedAddressesScreen() {
         </View>
       </Card>
 
-      {favorites.length > 0 && (
+      {loading && (
+        <View style={{ paddingVertical: spacing.xl, alignItems: 'center' }}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      )}
+
+      {!loading && favorites.length > 0 && (
         <>
           <SectionLabel label="Favorites" />
           <Card variant="soft" padded={false}>
@@ -66,7 +86,7 @@ export function SavedAddressesScreen() {
                   trailing={
                     <Text variant="body" color="subtle">≡</Text>
                   }
-                  onPress={() => navigation.navigate('AddAddress', { addressId: addr.id })}
+                  onPress={() => navigation.navigate('AddAddress', { address: addr })}
                   style={{ paddingHorizontal: spacing.base }}
                 />
                 {i < favorites.length - 1 && <Divider inset={spacing.base + 44 + spacing.md} />}
@@ -76,7 +96,7 @@ export function SavedAddressesScreen() {
         </>
       )}
 
-      {others.length > 0 && (
+      {!loading && others.length > 0 && (
         <>
           <SectionLabel label="Other Saved Locations" />
           <Card variant="soft" padded={false}>
@@ -87,7 +107,7 @@ export function SavedAddressesScreen() {
                   title={addr.label}
                   subtitle={addr.formatted}
                   trailing={<Text variant="body" color="subtle">≡</Text>}
-                  onPress={() => navigation.navigate('AddAddress', { addressId: addr.id })}
+                  onPress={() => navigation.navigate('AddAddress', { address: addr })}
                   style={{ paddingHorizontal: spacing.base }}
                 />
                 {i < others.length - 1 && <Divider inset={spacing.base + 44 + spacing.md} />}
@@ -97,7 +117,7 @@ export function SavedAddressesScreen() {
         </>
       )}
 
-      {favorites.length === 0 && others.length === 0 && (
+      {!loading && favorites.length === 0 && others.length === 0 && (
         <View
           style={{
             paddingVertical: spacing.xl,
@@ -137,6 +157,7 @@ export function SavedAddressesScreen() {
         <Text>💡</Text>
         <Text variant="small" color="muted" style={{ flex: 1 }}>
           Saving addresses helps you book rides faster without typing your destination every time.
+          Tap a saved place to edit or remove it.
         </Text>
       </View>
     </Screen>

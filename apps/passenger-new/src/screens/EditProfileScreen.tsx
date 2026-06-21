@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen } from '../components/Screen';
 import { Text } from '../components/Text';
@@ -10,6 +10,7 @@ import { Avatar } from '../components/Avatar';
 import { useTheme } from '../theme/ThemeProvider';
 import { usePassenger } from '../context/AuthContext';
 import { updatePassengerProfile } from '../services/firebase/passengerAuthService';
+import { pickAndUploadAvatar } from '../services/avatarUpload';
 
 export function EditProfileScreen() {
   const navigation = useNavigation();
@@ -20,6 +21,31 @@ export function EditProfileScreen() {
   const [phone, setPhone] = useState(user.phone);
   const [email, setEmail] = useState(user.email);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Local-only optimistic copy of the avatar URL so the new photo appears
+  // immediately after upload. AuthContext's Firestore listener will replace
+  // this with the canonical value within a tick.
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | undefined>(
+    user.avatarUrl,
+  );
+
+  async function onChangePhoto() {
+    setUploadingAvatar(true);
+    try {
+      const result = await pickAndUploadAvatar(user.id);
+      if (result.status === 'uploaded' && result.avatarUrl) {
+        setLocalAvatarUrl(result.avatarUrl);
+      } else if (result.status === 'permission_denied' || result.status === 'failed') {
+        Alert.alert('Could not change photo', result.message ?? 'Try again.');
+      } else if (result.status === 'not_available') {
+        Alert.alert('Photo change unavailable', result.message ?? 'Try later.');
+      }
+      // 'cancelled' is a silent no-op.
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function onSave() {
     const trimmedName = name.trim();
@@ -62,12 +88,43 @@ export function EditProfileScreen() {
       <Screen scroll>
       <Header title="Edit Profile" back />
 
-      {/* Avatar display only — photo upload is wired in a follow-up PR
-          (expo-image-picker + Firebase Storage). Until then we show the
-          generated initials avatar without a misleading "Change photo"
-          affordance that does nothing. */}
-      <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
-        <Avatar name={name || user.name} size={80} />
+      {/* Tap avatar → expo-image-picker → Firebase Storage upload →
+          users/{uid}.avatarUrl write. Optimistic local state shows the
+          new photo immediately; the Firestore listener will replace it
+          with the canonical value within a tick. */}
+      <View style={{ alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm }}>
+        <Pressable
+          onPress={onChangePhoto}
+          disabled={uploadingAvatar || saving}
+          hitSlop={10}
+          accessibilityLabel="Change profile photo"
+          style={({ pressed }) => ({
+            opacity: pressed || uploadingAvatar ? 0.7 : 1,
+          })}
+        >
+          <View>
+            <Avatar name={name || user.name} size={80} uri={localAvatarUrl} />
+            {uploadingAvatar && (
+              <View
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ActivityIndicator color="#FFFFFF" />
+              </View>
+            )}
+          </View>
+        </Pressable>
+        <Text variant="smallStrong" color="primary">
+          {uploadingAvatar ? 'Uploading…' : 'Change photo'}
+        </Text>
       </View>
 
       <Card variant="soft">

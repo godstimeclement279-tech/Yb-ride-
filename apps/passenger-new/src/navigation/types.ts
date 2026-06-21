@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
+import type { SavedAddress } from '@yb/shared';
 
 export type LocationSearchMode = 'pickup' | 'dropoff';
 
@@ -23,7 +24,9 @@ export type RootStackParamList = {
   Rating: { bookingId: string };
   Receipt: { bookingId: string };
   SavedAddresses: undefined;
-  AddAddress: { addressId?: string } | undefined;
+  // For edit mode, the caller passes the full SavedAddress object so the
+  // screen doesn't have to re-fetch from Firestore. New mode = no params.
+  AddAddress: { address?: SavedAddress } | undefined;
   PromoCodes: undefined;
   PaymentMethods: undefined;
   Notifications: undefined;

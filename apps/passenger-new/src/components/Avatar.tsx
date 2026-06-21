@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Text } from './Text';
 
@@ -7,10 +7,13 @@ interface AvatarProps {
   name: string;
   size?: number;
   online?: boolean;
+  // Public photo URL (e.g. from Firebase Storage). When provided + non-empty
+  // the image is shown instead of the initials. Falsy values fall back to
+  // the brand-yellow initial-letter chip.
+  uri?: string | null;
 }
 
-// Initial avatar (no real photos in mock). Optional online-dot accent.
-export function Avatar({ name, size = 64, online }: AvatarProps) {
+export function Avatar({ name, size = 64, online, uri }: AvatarProps) {
   const { colors } = useTheme();
   const initial = name.charAt(0).toUpperCase();
 
@@ -24,11 +27,20 @@ export function Avatar({ name, size = 64, online }: AvatarProps) {
           backgroundColor: colors.primary,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
-        <Text style={{ color: colors.textInverse, fontSize: size * 0.42, fontWeight: '700' }}>
-          {initial}
-        </Text>
+        {uri ? (
+          <Image
+            source={{ uri }}
+            style={{ width: size, height: size, borderRadius: size / 2 }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={{ color: colors.textInverse, fontSize: size * 0.42, fontWeight: '700' }}>
+            {initial}
+          </Text>
+        )}
       </View>
       {online && (
         <View

@@ -14,6 +14,9 @@ export interface BaseUser {
   isActive: boolean;
   createdAt: number;
   updatedAt: number;
+  // Public download URL for the user's profile photo, uploaded to Firebase
+  // Storage under `avatars/{uid}.jpg`. Optional — falls back to initials.
+  avatarUrl?: string;
 }
 
 export interface Passenger extends BaseUser {
