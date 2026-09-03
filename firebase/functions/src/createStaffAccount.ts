@@ -41,7 +41,7 @@ interface Vehicle {
   color: string;
 }
 
-interface CreateStaffAccountInput {
+export interface CreateStaffAccountInput {
   role: Role;
   email: string;
   password: string;
@@ -50,6 +50,33 @@ interface CreateStaffAccountInput {
   permissions?: StaffPermission[];
   vehicle?: Vehicle;
   carTypeId?: string;
+}
+
+export interface CreateStaffValidationError {
+  code: 'invalid-argument';
+  message: string;
+}
+
+// Validation that runs BEFORE creating the internal-auth user. The driver
+// vehicle check stays in the handler because it happens after the auth user
+// is created (and must roll it back).
+export function validateCreateStaffInput(
+  data: CreateStaffAccountInput | undefined,
+): CreateStaffValidationError | null {
+  const { role, email, password, name, phone } = data ?? {};
+  if (!role || (role !== 'staff' && role !== 'driver')) {
+    return { code: 'invalid-argument', message: 'role must be "staff" or "driver".' };
+  }
+  if (!email || !password || !name || !phone) {
+    return {
+      code: 'invalid-argument',
+      message: 'email, password, name, and phone are required.',
+    };
+  }
+  if (password.length < 8) {
+    return { code: 'invalid-argument', message: 'Password must be at least 8 characters.' };
+  }
+  return null;
 }
 
 async function assertCallerIsAdmin(uid: string | undefined): Promise<void> {
@@ -68,19 +95,10 @@ export const createStaffAccount = onCall<CreateStaffAccountInput>(
   async (req) => {
     await assertCallerIsAdmin(req.auth?.uid);
 
+    const validation = validateCreateStaffInput(req.data);
+    if (validation) throw new HttpsError(validation.code, validation.message);
+
     const { role, email, password, name, phone } = req.data;
-    if (!role || (role !== 'staff' && role !== 'driver')) {
-      throw new HttpsError('invalid-argument', 'role must be "staff" or "driver".');
-    }
-    if (!email || !password || !name || !phone) {
-      throw new HttpsError(
-        'invalid-argument',
-        'email, password, name, and phone are required.',
-      );
-    }
-    if (password.length < 8) {
-      throw new HttpsError('invalid-argument', 'Password must be at least 8 characters.');
-    }
 
     let uid: string;
     try {

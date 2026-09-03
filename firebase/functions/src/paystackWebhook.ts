@@ -32,7 +32,23 @@ interface PaystackEvent {
   };
 }
 
-function parseMetadataBookingId(meta: PaystackEvent['data']['metadata']): string | null {
+// Kept as a pure function so the money gate is testable; the comparison
+// itself is unchanged from the original handler.
+export function verifyPaystackSignature(
+  signature: string,
+  rawBody: Buffer,
+  secret: string,
+): boolean {
+  const expected = crypto
+    .createHmac('sha512', secret)
+    .update(rawBody)
+    .digest('hex');
+  return signature === expected;
+}
+
+export function parseMetadataBookingId(
+  meta: PaystackEvent['data']['metadata'],
+): string | null {
   if (!meta) return null;
   if (typeof meta === 'string') {
     try {
@@ -43,6 +59,34 @@ function parseMetadataBookingId(meta: PaystackEvent['data']['metadata']): string
     }
   }
   return meta.bookingId ?? null;
+}
+
+// Decide whether a charge.success should flip this booking to paid. Returns
+// the Firestore update payload, or null when the event must be ignored
+// (already paid, or the settled amount is below the fare).
+export function flipBookingUpdates(
+  data: unknown,
+  paidKobo: number,
+  paystackReference: string | null,
+): Record<string, unknown> | null {
+  const booking = (data ?? {}) as {
+    status?: unknown;
+    paidAt?: unknown;
+    fare?: { total?: unknown };
+  };
+  // Idempotent: don't overwrite an already-paid booking.
+  if (booking.status === 'paid' || booking.paidAt) return null;
+
+  // Sanity check: Paystack amount (kobo) should match our fare.
+  const fareKobo = (booking.fare?.total as number | undefined) ?? 0;
+  if (paidKobo > 0 && fareKobo > 0 && paidKobo < fareKobo) return null;
+
+  return {
+    status: 'paid',
+    paidAt: Date.now(),
+    paystackReference: paystackReference ?? null,
+    paymentMethod: 'bank_transfer',
+  };
 }
 
 export const paystackWebhook = onRequest(
@@ -65,11 +109,7 @@ export const paystackWebhook = onRequest(
       res.status(400).send('missing body');
       return;
     }
-    const expected = crypto
-      .createHmac('sha512', PAYSTACK_SECRET.value())
-      .update(rawBody)
-      .digest('hex');
-    if (signature !== expected) {
+    if (!verifyPaystackSignature(signature, rawBody, PAYSTACK_SECRET.value())) {
       logger.warn('paystackWebhook: invalid signature');
       res.status(401).send('invalid signature');
       return;
@@ -100,28 +140,13 @@ export const paystackWebhook = onRequest(
           logger.warn('paystackWebhook: booking not found', { bookingId });
           return;
         }
-        const data = snap.data();
-        // Idempotent: don't overwrite an already-paid booking.
-        if (data?.status === 'paid' || data?.paidAt) return;
-
-        // Sanity check: Paystack amount (kobo) should match our fare.
-        const paidKobo = event.data.amount ?? 0;
-        const fareKobo = (data?.fare?.total as number | undefined) ?? 0;
-        if (paidKobo > 0 && fareKobo > 0 && paidKobo < fareKobo) {
-          logger.warn('paystackWebhook: amount mismatch — refusing to flip', {
-            bookingId,
-            paidKobo,
-            fareKobo,
-          });
-          return;
-        }
-
-        tx.update(ref, {
-          status: 'paid',
-          paidAt: Date.now(),
-          paystackReference: event.data.reference ?? null,
-          paymentMethod: 'bank_transfer',
-        });
+        const updates = flipBookingUpdates(
+          snap.data(),
+          event.data.amount ?? 0,
+          event.data.reference ?? null,
+        );
+        if (!updates) return;
+        tx.update(ref, updates);
       });
       res.status(200).send('ok');
     } catch (err) {

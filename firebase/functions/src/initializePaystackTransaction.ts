@@ -48,12 +48,76 @@ interface PaystackInitResponse {
   };
 }
 
-interface BookingDoc {
+export interface BookingDoc {
   passengerId?: string;
   status?: string;
   fare?: { total?: number };
   pickup?: { label?: string };
   dropoff?: { label?: string };
+}
+
+export interface InitializeValidationError {
+  code: 'failed-precondition';
+  message: string;
+}
+
+// Booking-side gate, in the same order the handler evaluates it: status
+// first, then a non-zero fare. The email check happens after this in the
+// handler because it requires a separate users doc read.
+export function validateBookingPayable(
+  booking: BookingDoc | undefined,
+): InitializeValidationError | null {
+  if (booking?.status !== 'pending_payment') {
+    return {
+      code: 'failed-precondition',
+      message: `Booking is already in state "${booking?.status ?? 'undefined'}" — nothing to pay.`,
+    };
+  }
+  const amountKobo = booking.fare?.total ?? 0;
+  if (amountKobo <= 0) {
+    return { code: 'failed-precondition', message: 'Booking has no fare.' };
+  }
+  return null;
+}
+
+// Compose the Paystack initialize body for a validated booking. The
+// reference is OUR id — Paystack echoes it in the webhook, so we can
+// correlate without trusting client metadata.
+export function buildPaystackInitBody(
+  booking: BookingDoc,
+  email: string,
+  bookingId: string,
+  channels: string[] | undefined,
+  now: number,
+): Record<string, unknown> {
+  const effectiveChannels =
+    channels && channels.length > 0 ? channels : ['bank_transfer', 'card'];
+  return {
+    email,
+    amount: booking.fare?.total ?? 0,
+    currency: 'NGN',
+    reference: `yb_${bookingId}_${now}`,
+    channels: effectiveChannels,
+    // metadata.bookingId is what paystackWebhook reads to flip the booking
+    // to paid. Without it, the webhook would have to fall back to
+    // matching by reference which is also fine but more brittle.
+    metadata: {
+      bookingId,
+      // Custom fields show up in the Paystack dashboard for support.
+      custom_fields: [
+        {
+          display_name: 'Pickup',
+          variable_name: 'pickup',
+          value: booking.pickup?.label ?? '',
+        },
+        {
+          display_name: 'Dropoff',
+          variable_name: 'dropoff',
+          value: booking.dropoff?.label ?? '',
+        },
+      ],
+    },
+  };
 }
 
 export const initializePaystackTransaction = onCall(
@@ -92,16 +156,9 @@ export const initializePaystackTransaction = onCall(
       // not-found shape.
       throw new HttpsError('not-found', 'Booking not found.');
     }
-    if (booking.status !== 'pending_payment') {
-      throw new HttpsError(
-        'failed-precondition',
-        `Booking is already in state "${booking.status}" — nothing to pay.`,
-      );
-    }
-    const amountKobo = booking.fare?.total ?? 0;
-    if (amountKobo <= 0) {
-      throw new HttpsError('failed-precondition', 'Booking has no fare.');
-    }
+
+    const payable = validateBookingPayable(booking);
+    if (payable) throw new HttpsError(payable.code, payable.message);
 
     // ── Fetch passenger email (Paystack requires it) ─────────────────────
     const userSnap = await db.doc(`users/${uid}`).get();
@@ -114,39 +171,7 @@ export const initializePaystackTransaction = onCall(
     }
 
     // ── Compose Paystack init request ────────────────────────────────────
-    // Reference is OUR id — Paystack echoes it in the webhook, so we can
-    // correlate without trusting client metadata.
-    const reference = `yb_${bookingId}_${Date.now()}`;
-    const channels = data.channels && data.channels.length > 0
-      ? data.channels
-      : ['bank_transfer', 'card'];
-
-    const initBody = {
-      email,
-      amount: amountKobo,
-      currency: 'NGN',
-      reference,
-      channels,
-      // metadata.bookingId is what paystackWebhook reads to flip the booking
-      // to paid. Without it, the webhook would have to fall back to
-      // matching by reference which is also fine but more brittle.
-      metadata: {
-        bookingId,
-        // Custom fields show up in the Paystack dashboard for support.
-        custom_fields: [
-          {
-            display_name: 'Pickup',
-            variable_name: 'pickup',
-            value: booking.pickup?.label ?? '',
-          },
-          {
-            display_name: 'Dropoff',
-            variable_name: 'dropoff',
-            value: booking.dropoff?.label ?? '',
-          },
-        ],
-      },
-    };
+    const initBody = buildPaystackInitBody(booking, email, bookingId, data.channels, Date.now());
 
     // ── Hit Paystack ─────────────────────────────────────────────────────
     let response: Response;
@@ -181,14 +206,14 @@ export const initializePaystackTransaction = onCall(
     // webhook is the source of truth for the `paid` flip. This update only
     // captures the pending reference for support / forensics.
     await bookingRef.update({
-      paystackReference: json.data.reference ?? reference,
+      paystackReference: json.data.reference ?? `yb_${bookingId}_${Date.now()}`,
       paystackInitializedAt: Date.now(),
     });
 
     return {
       authorizationUrl: json.data.authorization_url,
       accessCode: json.data.access_code ?? null,
-      reference: json.data.reference ?? reference,
+      reference: json.data.reference ?? `yb_${bookingId}_${Date.now()}`,
     };
   },
 );

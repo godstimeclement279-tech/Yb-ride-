@@ -10,9 +10,33 @@ import { logger } from 'firebase-functions';
 
 type Role = 'staff' | 'driver';
 
-interface DeleteAccountInput {
+export interface DeleteAccountInput {
   role: Role;
   uid: string;
+}
+
+export interface DeleteAccountValidationError {
+  code: 'invalid-argument' | 'failed-precondition';
+  message: string;
+}
+
+// Input validation for the admin delete flow. Called AFTER the admin gate,
+// so callerUid is only used to block self-deletion.
+export function validateDeleteAccountInput(
+  data: DeleteAccountInput | undefined,
+  callerUid: string | undefined,
+): DeleteAccountValidationError | null {
+  const { role, uid } = data ?? {};
+  if (role !== 'staff' && role !== 'driver') {
+    return { code: 'invalid-argument', message: 'role must be "staff" or "driver".' };
+  }
+  if (!uid) {
+    return { code: 'invalid-argument', message: 'uid is required.' };
+  }
+  if (uid === callerUid) {
+    return { code: 'failed-precondition', message: 'Admins cannot delete themselves.' };
+  }
+  return null;
 }
 
 async function assertCallerIsAdmin(uid: string | undefined): Promise<void> {
@@ -31,16 +55,10 @@ export const deleteAccount = onCall<DeleteAccountInput>(
   async (req) => {
     await assertCallerIsAdmin(req.auth?.uid);
 
+    const validation = validateDeleteAccountInput(req.data, req.auth?.uid);
+    if (validation) throw new HttpsError(validation.code, validation.message);
+
     const { role, uid } = req.data;
-    if (role !== 'staff' && role !== 'driver') {
-      throw new HttpsError('invalid-argument', 'role must be "staff" or "driver".');
-    }
-    if (!uid) {
-      throw new HttpsError('invalid-argument', 'uid is required.');
-    }
-    if (uid === req.auth?.uid) {
-      throw new HttpsError('failed-precondition', 'Admins cannot delete themselves.');
-    }
 
     const db = getFirestore();
     const collection = role === 'staff' ? 'staff' : 'drivers';
