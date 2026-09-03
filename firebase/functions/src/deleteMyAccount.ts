@@ -23,8 +23,29 @@ import { logger } from 'firebase-functions';
 
 type Role = 'passenger' | 'driver';
 
-function isSupportedRole(role: unknown): role is Role {
+export function isSupportedRole(role: unknown): role is Role {
   return role === 'passenger' || role === 'driver';
+}
+
+export interface SelfDeleteGateError {
+  code: 'failed-precondition';
+  message: string;
+}
+
+// Decides whether a role may self-delete. A missing role (orphaned auth
+// user) is allowed through — the handler still wipes Auth so the user can
+// re-enter a clean state.
+export function selfDeleteGate(role: string | undefined): SelfDeleteGateError | null {
+  if (role && !isSupportedRole(role)) {
+    return {
+      code: 'failed-precondition',
+      message:
+        role === 'staff' || role === 'admin'
+          ? 'Staff and admin accounts are managed by an administrator. Contact YB Ride to be removed.'
+          : 'This account role cannot self-delete.',
+    };
+  }
+  return null;
 }
 
 export const deleteMyAccount = onCall(
@@ -43,14 +64,8 @@ export const deleteMyAccount = onCall(
     const userSnap = await db.doc(`users/${callerUid}`).get();
     const role = userSnap.exists ? (userSnap.data()?.role as string | undefined) : undefined;
 
-    if (role && !isSupportedRole(role)) {
-      throw new HttpsError(
-        'failed-precondition',
-        role === 'staff' || role === 'admin'
-          ? 'Staff and admin accounts are managed by an administrator. Contact YB Ride to be removed.'
-          : 'This account role cannot self-delete.',
-      );
-    }
+    const gate = selfDeleteGate(role);
+    if (gate) throw new HttpsError(gate.code, gate.message);
 
     // Best-effort Firestore wipes — if Auth delete fails after this, the
     // user is already locked out of the apps because the auth gates check

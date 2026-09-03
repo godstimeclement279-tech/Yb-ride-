@@ -26,15 +26,21 @@ interface Booking {
   dropoff?: { label?: string };
 }
 
-async function tokensFor(collection: string, id?: string): Promise<string[]> {
-  if (!id) return [];
-  const snap = await getFirestore().doc(`${collection}/${id}`).get();
-  const raw = snap.exists ? (snap.data()?.fcmTokens as unknown) : undefined;
+// Keep only well-formed non-empty tokens; garbage in the doc must not reach
+// the FCM API.
+export function sanitizeTokens(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((t): t is string => typeof t === 'string' && t.length > 0);
 }
 
-interface NotificationPlan {
+async function tokensFor(collection: string, id?: string): Promise<string[]> {
+  if (!id) return [];
+  const snap = await getFirestore().doc(`${collection}/${id}`).get();
+  const raw = snap.exists ? (snap.data()?.fcmTokens as unknown) : undefined;
+  return sanitizeTokens(raw);
+}
+
+export interface NotificationPlan {
   title: string;
   body: string;
   // 'urgent' channel for driver alerts that must cut through DND.
@@ -42,7 +48,7 @@ interface NotificationPlan {
   audience: 'passenger' | 'driver' | 'both';
 }
 
-function planForTransition(
+export function planForTransition(
   prev: string,
   next: string,
 ): { driver?: NotificationPlan; passenger?: NotificationPlan } | null {
@@ -111,15 +117,14 @@ function planForTransition(
   return null;
 }
 
-async function sendToTokens(
+export function buildNotificationMessage(
   tokens: string[],
   plan: NotificationPlan,
   bookingId: string,
   status: string,
-): Promise<{ ok: number; fail: number }> {
-  if (tokens.length === 0) return { ok: 0, fail: 0 };
+): MulticastMessage {
   const isUrgent = plan.channel === 'urgent';
-  const message: MulticastMessage = {
+  return {
     tokens,
     notification: { title: plan.title, body: plan.body },
     data: { bookingId, status },
@@ -145,6 +150,16 @@ async function sendToTokens(
       },
     },
   };
+}
+
+async function sendToTokens(
+  tokens: string[],
+  plan: NotificationPlan,
+  bookingId: string,
+  status: string,
+): Promise<{ ok: number; fail: number }> {
+  if (tokens.length === 0) return { ok: 0, fail: 0 };
+  const message = buildNotificationMessage(tokens, plan, bookingId, status);
   try {
     const result = await getMessaging().sendEachForMulticast(message);
     return { ok: result.successCount, fail: result.failureCount };
