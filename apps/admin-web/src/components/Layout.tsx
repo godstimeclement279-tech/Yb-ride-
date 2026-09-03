@@ -1,7 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTheme } from '../theme/ThemeProvider';
 import { useAuth } from '../context/AuthContext';
+import { ConfirmDialog } from './ui';
 
 interface NavItem {
   to: string;
@@ -170,9 +172,10 @@ function FooterCard() {
 function Topbar({ children }: { children?: ReactNode }) {
   const { mode, toggle } = useTheme();
   const { admin, signOutNow } = useAuth();
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const initial = (admin?.name ?? 'A').charAt(0).toUpperCase();
-  const onSignOut = async () => {
-    if (!window.confirm('Sign out of the admin dashboard?')) return;
+  const doSignOut = async () => {
+    setSignOutOpen(false);
     try {
       await signOutNow();
     } catch (err) {
@@ -180,9 +183,10 @@ function Topbar({ children }: { children?: ReactNode }) {
     }
   };
   return (
-    <header
-      style={{
-        height: 56,
+    <>
+      <header
+        style={{
+          height: 56,
         borderBottom: '1px solid var(--c-border)',
         background: 'var(--c-surface)',
         display: 'flex',
@@ -246,7 +250,7 @@ function Topbar({ children }: { children?: ReactNode }) {
             </div>
           </div>
           <button
-            onClick={onSignOut}
+            onClick={() => setSignOutOpen(true)}
             aria-label="Sign out"
             style={{
               marginLeft: 8,
@@ -263,7 +267,16 @@ function Topbar({ children }: { children?: ReactNode }) {
           </button>
         </div>
       </div>
-    </header>
+      </header>
+      <ConfirmDialog
+        open={signOutOpen}
+        title="Sign out?"
+        message="You will need to sign in again to manage bookings, drivers, and zones."
+        confirmLabel="Sign out"
+        onConfirm={() => void doSignOut()}
+        onCancel={() => setSignOutOpen(false)}
+      />
+    </>
   );
 }
 

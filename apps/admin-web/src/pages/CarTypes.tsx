@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CarType } from '@yb/shared';
+import type { CarType, Driver } from '@yb/shared';
 import {
   Button,
   Card,
@@ -26,10 +26,14 @@ import {
   subscribeCarTypes,
   uploadCarTypeIcon,
 } from '../services/firebase/carTypesService';
+import { subscribeDrivers } from '../services/firebase/driversService';
 import { FIREBASE_CONFIGURED } from '../services/firebase/index';
 
 export function CarTypes() {
   const [carTypes, setCarTypes] = useState<CarType[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>(
+    FIREBASE_CONFIGURED ? [] : mockDrivers,
+  );
   const [editing, setEditing] = useState<CarType | null>(null);
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,8 +50,13 @@ export function CarTypes() {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    if (!FIREBASE_CONFIGURED) return;
+    return subscribeDrivers(setDrivers);
+  }, []);
+
   function driverCountFor(carTypeId: string): number {
-    return mockDrivers.filter(d => d.carTypeId === carTypeId).length;
+    return drivers.filter(d => d.carTypeId === carTypeId).length;
   }
 
   return (

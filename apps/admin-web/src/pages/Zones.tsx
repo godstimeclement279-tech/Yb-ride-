@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Button,
   Card,
+  ConfirmDialog,
   EmptyState,
   Field,
   Input,
@@ -166,6 +167,7 @@ function ZoneModal({
   const [isActive, setIsActive] = useState(zone?.isActive ?? true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Reset form whenever the parent reopens the modal with a different zone.
   useEffect(() => {
@@ -229,7 +231,7 @@ function ZoneModal({
 
   async function remove(): Promise<void> {
     if (!zone) return;
-    if (!window.confirm(`Delete "${zone.name}"? This cannot be undone.`)) return;
+    setDeleteOpen(false);
     setSaving(true);
     try {
       await deleteZone(zone.id);
@@ -243,15 +245,20 @@ function ZoneModal({
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={zone ? `Edit ${zone.name}` : 'New zone'}
-      width={760}
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title={zone ? `Edit ${zone.name}` : 'New zone'}
+        width={760}
       footer={
         <>
           {zone && (
-            <Button variant="ghost" onClick={remove} disabled={saving}>
+            <Button
+              variant="ghost"
+              onClick={() => setDeleteOpen(true)}
+              disabled={saving}
+            >
               Delete
             </Button>
           )}
@@ -347,6 +354,16 @@ function ZoneModal({
           {surcharge ? nairaToKobo(Number(surcharge)).toLocaleString() : 0}
         </strong>
       </div>
-    </Modal>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title={`Delete ${zone?.name ?? 'zone'}?`}
+        message="This cannot be undone. The zone outline is removed and its surcharge no longer applies to new bookings."
+        confirmLabel="Delete zone"
+        onConfirm={() => void remove()}
+        onCancel={() => setDeleteOpen(false)}
+      />
+    </>
   );
 }
